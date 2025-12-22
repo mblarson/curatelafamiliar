@@ -82,7 +82,7 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
 
       // Promise for data extraction
       const dataExtractionPromise = ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-flash-latest',
         contents: { parts: [{ text: `Analise este recibo. Extraia o valor total, a data da transação (no formato AAAA-MM-DD) e uma breve descrição ou nome do estabelecimento. Se não conseguir encontrar uma data, use a data de hoje. Se não encontrar um valor, use 0.` }, imagePart] },
         config: {
             responseMimeType: "application/json",
@@ -111,34 +111,9 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
 
       const [dataResponse, imageResponse] = await Promise.all([dataExtractionPromise, imageProcessingPromise]);
       
-      // Process data response with robust parsing
-      let parsedData;
-      const textResponse = dataResponse.text?.trim();
-
-      if (!textResponse) {
-        throw new Error("AI returned an empty response for data extraction.");
-      }
-      
-      try {
-        parsedData = JSON.parse(textResponse);
-      } catch (e) {
-        console.warn("Direct JSON.parse failed, attempting to extract from markdown.", e);
-        const jsonMatch = textResponse.match(/```(?:json)?\s*([\s\S]+?)\s*```/);
-        if (jsonMatch && jsonMatch[1]) {
-          try {
-            parsedData = JSON.parse(jsonMatch[1]);
-          } catch (e2) {
-             console.error("Failed to parse JSON even after extracting from markdown.", e2);
-             throw new Error("AI response did not contain valid JSON.");
-          }
-        } else {
-          throw new Error("AI response was not in the expected JSON format.");
-        }
-      }
-
-      if (!parsedData || typeof parsedData.value === 'undefined' || !parsedData.date) {
-        throw new Error("Incomplete data received from AI. Required fields are missing.");
-      }
+      // Process data response
+      const textResponse = dataResponse.text.trim();
+      const parsedData = JSON.parse(textResponse);
 
       if (!/^\d{4}-\d{2}-\d{2}$/.test(parsedData.date)) {
         console.warn("Invalid date format from AI, using today's date.", parsedData.date);
@@ -160,7 +135,7 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
 
     } catch (error) {
       console.error("Error scanning receipt:", error);
-      setScanError('Não foi possível analisar o recibo. A IA não conseguiu processar os dados. Tente novamente.');
+      setScanError('Não foi possível analisar o recibo. Tente novamente com uma imagem mais nítida.');
     } finally {
       setIsLoading(false);
     }
