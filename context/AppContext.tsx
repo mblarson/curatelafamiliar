@@ -19,6 +19,10 @@ interface AppContextType {
   deleteTransaction: (id: string) => void;
   
   calculateCurrentBalance: (accountId: string) => number;
+  
+  apiKey: string | null;
+  setApiKey: (key: string | null) => void;
+  isAiAvailable: boolean;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -49,6 +53,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [accounts, setAccounts] = usePersistentState<BankAccount[]>('accounts', []);
   const [categories, setCategories] = usePersistentState<Category[]>('categories', []);
   const [transactions, setTransactions] = usePersistentState<Transaction[]>('transactions', []);
+  const [apiKey, setApiKey] = usePersistentState<string | null>('user_api_key', null);
+
+  const isAiAvailable = useMemo(() => !!(process.env.API_KEY || apiKey), [apiKey]);
 
   // Accounts CRUD
   const addAccount = (account: Omit<BankAccount, 'id'>) => {
@@ -107,7 +114,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     accounts, addAccount, updateAccount, deleteAccount, getAccountById,
     categories, addCategory, updateCategory, deleteCategory,
     transactions, addTransaction, updateTransaction, deleteTransaction,
-    calculateCurrentBalance
+    calculateCurrentBalance,
+    apiKey, setApiKey, isAiAvailable,
   };
 
   return (

@@ -165,7 +165,7 @@ const TransactionForm: React.FC<{
 
 
 const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_card', title: string }> = ({ transactionType, title }) => {
-    const { transactions, categories, accounts, addTransaction, updateTransaction, deleteTransaction } = useAppData();
+    const { transactions, categories, accounts, addTransaction, updateTransaction, deleteTransaction, isAiAvailable } = useAppData();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [transactionToEdit, setTransactionToEdit] = useState<Partial<Transaction> | null>(null);
@@ -174,8 +174,6 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
     const [filterDate, setFilterDate] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
     const [filterNature, setFilterNature] = useState('');
-
-    const isAiAvailable = useMemo(() => !!process.env.API_KEY, []);
 
     const filteredTransactions = useMemo(() => {
         return transactions

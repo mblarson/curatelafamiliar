@@ -4,13 +4,15 @@ import BankAccounts from './components/pages/BankAccounts';
 import Transactions from './components/pages/Transactions';
 import Reports from './components/pages/Reports';
 import Console from './components/ui/Console';
-import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPulse } from 'lucide-react';
+import SettingsModal from './components/ui/SettingsModal';
+import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPulse, Settings } from 'lucide-react';
 
 type Page = 'Dashboard' | 'Conta Bancária' | 'Categorias' | 'Conta Corrente' | 'Cartão de Crédito';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('Dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   const renderPage = () => {
     switch (activePage) {
@@ -77,7 +79,23 @@ const App: React.FC = () => {
             {menuItems.map(item => <NavLink key={item.name} page={item.name} icon={item.icon} />)}
           </ul>
         </nav>
-        <div className="text-center text-xs text-gray-400 mt-6">
+        
+        <div className="mt-auto pt-4 border-t border-gray-100">
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              setIsSettingsModalOpen(true);
+              setIsSidebarOpen(false);
+            }}
+            className="flex items-center gap-3 p-3 rounded-lg transition-colors font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+          >
+            <Settings className="w-5 h-5" />
+            <span>Configurações</span>
+          </a>
+        </div>
+
+        <div className="text-center text-xs text-gray-400 mt-4">
           <p>Feito com cuidado para você.</p>
         </div>
       </aside>
@@ -107,7 +125,9 @@ const App: React.FC = () => {
           onClick={() => setIsSidebarOpen(false)}
         ></div>
       )}
-
+      
+      <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
+      
       {/* Robust Console for Debugging */}
       <Console />
     </div>

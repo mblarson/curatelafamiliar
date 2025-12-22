@@ -3,6 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { useLogger } from '../../hooks/useLogger';
+import { useAppData } from '../../hooks/useAppData';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
 
 interface DocumentScannerModalProps {
@@ -16,6 +17,7 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [scanError, setScanError] = useState('');
+  const { apiKey } = useAppData();
   const log = useLogger();
 
   const resetState = () => {
@@ -65,12 +67,13 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
 
     log.info('Iniciando digitalização de documento...');
     try {
-      if (!process.env.API_KEY) {
+      const finalApiKey = process.env.API_KEY || apiKey;
+      if (!finalApiKey) {
         throw new Error('API_KEY_MISSING');
       }
 
       const base64Image = await fileToBase64(selectedFile);
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+      const ai = new GoogleGenAI({ apiKey: finalApiKey });
 
       const imagePart = {
         inlineData: {
