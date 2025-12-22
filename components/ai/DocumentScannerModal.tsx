@@ -81,7 +81,7 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
       };
       log.info('Enviando requisição para a IA (Documento)...', requestPayload);
 
-      const response = await ai.models.generateContent({
+      const apiCallPromise = ai.models.generateContent({
           model: 'gemini-2.5-flash-image',
           contents: {
               parts: [
@@ -90,6 +90,12 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
               ]
           }
       });
+      
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('API_TIMEOUT')), 30000) // 30 seconds
+      );
+
+      const response: any = await Promise.race([apiCallPromise, timeoutPromise]);
 
       log.info('Resposta da IA (Documento) recebida.', response);
       let scannedImage = '';
@@ -106,8 +112,13 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
       handleClose();
 
     } catch (error) {
-      log.error("Erro ao digitalizar documento.", { error });
-      setScanError('Não foi possível processar o documento. Tente novamente com uma imagem mais nítida.');
+       if (error instanceof Error && error.message === 'API_TIMEOUT') {
+          log.error("A requisição para digitalizar documento expirou (timeout de 30s).");
+          setScanError('A comunicação com a IA demorou muito. Verifique sua conexão e tente novamente.');
+      } else {
+        log.error("Erro ao digitalizar documento.", { error });
+        setScanError('Não foi possível processar o documento. Verifique o console para mais detalhes.');
+      }
     } finally {
       setIsLoading(false);
     }

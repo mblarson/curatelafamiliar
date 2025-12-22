@@ -88,7 +88,8 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
         // O resto do payload contém dados sensíveis (imagem), então o omitimos dos logs.
       };
       log.info('Enviando requisição para a IA...', requestPayload);
-      const response = await ai.models.generateContent({
+      
+      const apiCallPromise = ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: { parts: [
             { text: `Você é um assistente de digitalização financeira. Sua tarefa é dupla:
@@ -112,6 +113,12 @@ Retorne um único objeto JSON contendo os dados extraídos e a imagem limpa em f
             }
         }
       });
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('API_TIMEOUT')), 30000) // 30 seconds
+      );
+      
+      const response: any = await Promise.race([apiCallPromise, timeoutPromise]);
       
       log.info('Resposta da IA recebida.', response);
       let parsedData;
@@ -151,8 +158,13 @@ Retorne um único objeto JSON contendo os dados extraídos e a imagem limpa em f
       handleClose();
 
     } catch (error) {
-      log.error("Erro ao digitalizar recibo.", { error });
-      setScanError('A IA não conseguiu processar a imagem. Por favor, tente novamente.');
+      if (error instanceof Error && error.message === 'API_TIMEOUT') {
+          log.error("A requisição para a IA expirou (timeout de 30s).");
+          setScanError('A comunicação com a IA demorou muito. Verifique sua conexão e tente novamente.');
+      } else {
+        log.error("Erro ao digitalizar recibo.", { error });
+        setScanError('A IA não conseguiu processar a imagem. Verifique o console para mais detalhes.');
+      }
     } finally {
       setIsLoading(false);
     }
