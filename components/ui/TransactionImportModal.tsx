@@ -153,7 +153,9 @@ const TransactionImportModal: React.FC<{
 
 
                 // Validate Value
-                const numValue = typeof valueVal === 'string' ? parseFloat(valueVal.replace(',', '.')) : valueVal;
+                const numValue = typeof valueVal === 'string' 
+                    ? parseFloat(valueVal.replace(/\./g, '').replace(',', '.')) 
+                    : valueVal;
                 if (typeof numValue === 'number' && !isNaN(numValue) && numValue !== 0) {
                     result.value = Math.abs(numValue);
                     result.nature = TransactionNature.DESPESA; // Nature is always expense for credit card import
