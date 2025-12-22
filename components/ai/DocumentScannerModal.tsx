@@ -1,0 +1,167 @@
+
+import React, { useState, useCallback } from 'react';
+import { GoogleGenAI } from "@google/genai";
+import Modal from '../ui/Modal';
+import { fileToBase64 } from '../../utils/imageUtils';
+import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
+
+interface DocumentScannerModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onScanComplete: (base64Image: string) => void;
+}
+
+const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onClose, onScanComplete }) => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [scanError, setScanError] = useState('');
+
+  const resetState = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setIsLoading(false);
+    setScanError('');
+  }
+
+  const handleClose = () => {
+    resetState();
+    onClose();
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setScanError('');
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const onDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const file = event.dataTransfer.files?.[0];
+    if (file) {
+      setScanError('');
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  }, []);
+
+  const onDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  const handleScan = async () => {
+    if (!selectedFile) {
+      setScanError('Por favor, selecione uma imagem primeiro.');
+      return;
+    }
+    setIsLoading(true);
+    setScanError('');
+
+    try {
+      const base64Image = await fileToBase64(selectedFile);
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+
+      const imagePart = {
+        inlineData: {
+          mimeType: selectedFile.type,
+          data: base64Image,
+        },
+      };
+
+      const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash-image',
+          contents: {
+              parts: [
+                  { text: 'Aja como um scanner de documentos profissional. Pegue esta imagem de um documento, alinhe-o, centralize, corrija a perspectiva, remova sombras, aumente o contraste e retorne uma imagem limpa e nítida com um fundo perfeitamente branco. O resultado deve se parecer com um documento digitalizado por uma impressora multifuncional de alta qualidade.' },
+                  imagePart
+              ]
+          }
+      });
+
+      let scannedImage = '';
+      const imagePartResponse = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
+      if (imagePartResponse && imagePartResponse.inlineData) {
+          scannedImage = imagePartResponse.inlineData.data;
+      } else {
+          console.warn("Não foi possível obter uma imagem digitalizada, usando a original.");
+          scannedImage = base64Image;
+      }
+
+      onScanComplete(scannedImage);
+      handleClose();
+
+    } catch (error) {
+      console.error("Erro ao digitalizar documento:", error);
+      setScanError('Não foi possível processar o documento. Tente novamente com uma imagem mais nítida.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title="Digitalizar Documento">
+      <div className="space-y-4">
+        {previewUrl ? (
+          <div className="text-center">
+            <img src={previewUrl} alt="Pré-visualização do documento" className="max-h-60 w-auto inline-block rounded-md border" />
+          </div>
+        ) : (
+          <div
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
+            onClick={() => document.getElementById('doc-file-upload')?.click()}
+          >
+            <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
+            <p className="mt-2 text-sm text-gray-600">Arraste e solte o documento aqui, ou clique para selecionar</p>
+            <p className="text-xs text-gray-500">PNG, JPG ou WEBP</p>
+            <input id="doc-file-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+          </div>
+        )}
+
+        {scanError && (
+          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded-md flex items-center gap-2">
+            <AlertCircle size={20} />
+            <p className="text-sm">{scanError}</p>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3 pt-4">
+            <button
+                type="button"
+                onClick={handleClose}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+                disabled={isLoading}
+            >
+                Cancelar
+            </button>
+            <button
+                type="button"
+                onClick={handleScan}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow disabled:bg-blue-300 disabled:cursor-not-allowed"
+                disabled={!selectedFile || isLoading}
+            >
+                {isLoading ? (
+                    <>
+                        <Loader2 size={20} className="animate-spin" />
+                        Digitalizando...
+                    </>
+                ) : (
+                    <>
+                        <ScanLine size={20} />
+                        Digitalizar
+                    </>
+                )}
+            </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+export default DocumentScannerModal;
