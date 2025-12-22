@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-// ATENÇÃO: Cole sua chave de API do Google Gemini aqui.
+// PONTO CENTRAL DE CONFIGURAÇÃO DA IA
+// Instrução: Substitua o valor abaixo pela sua chave de API do Google Gemini.
 // Obtenha sua chave em https://ai.google.dev/
 export const GEMINI_API_KEY = "AIzaSyAsjrqN8VIYVr9z37vEHXw5YJEj4orX-Ok";
 
