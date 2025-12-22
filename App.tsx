@@ -10,7 +10,7 @@ import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPuls
 
 type Page = 'Dashboard' | 'Conta Bancária' | 'Categorias' | 'Conta Corrente' | 'Cartão de Crédito' | 'Documentos';
 
-const MainApp: React.FC = () => {
+const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('Dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { isLoading } = useAppData();
@@ -95,7 +95,7 @@ const MainApp: React.FC = () => {
           </ul>
         </nav>
         
-        <div className="border-t border-gray-100 pt-4">
+        <div className="border-t border-gray-100 pt-4 mt-4">
           <div className="text-center text-xs text-gray-400 pt-2">
             <p>Feito com cuidado para você.</p>
           </div>
@@ -132,10 +132,6 @@ const MainApp: React.FC = () => {
       <Console />
     </div>
   );
-};
-
-const App: React.FC = () => {
-  return <MainApp />;
 };
 
 export default App;

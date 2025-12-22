@@ -23,7 +23,7 @@ interface ParsedTransaction {
     message?: string;
 }
 
-const normalizeHeader = (str: string): string => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const normalizeHeader = (str: string): string => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 const StatusBadge: React.FC<{ status: ParsedStatus }> = ({ status }) => {
     const config = {
@@ -37,6 +37,19 @@ const StatusBadge: React.FC<{ status: ParsedStatus }> = ({ status }) => {
         </span>
     );
 };
+
+// Helper function to convert Excel's serial date number to a JS Date object.
+const convertExcelSerialDate = (serial: number): Date => {
+    // Excel's epoch starts on 1899-12-30 due to a leap year bug with 1900.
+    // JavaScript's epoch is 1970-01-01.
+    // The difference is 25569 days.
+    const utc_days = serial - 25569;
+    const date = new Date(utc_days * 86400 * 1000);
+    // Adjust for timezone offset to get the correct calendar day.
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() + tzOffset);
+};
+
 
 const TransactionImportModal: React.FC<{
     isOpen: boolean;
@@ -79,7 +92,6 @@ const TransactionImportModal: React.FC<{
             const workbook = window.XLSX.read(data, { type: 'buffer' });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
-            // Use raw:true to get the exact string value from the cell, preventing auto-parsing issues.
             const json: any[][] = window.XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true });
 
             if (json.length < 2) throw new Error('A planilha está vazia.');
@@ -90,7 +102,7 @@ const TransactionImportModal: React.FC<{
             
             requiredHeaders.forEach(reqHeader => {
                 const index = headerRow.findIndex(h => h === reqHeader);
-                if(index === -1) throw new Error(`Coluna obrigatória "${reqHeader}" não encontrada na planilha.`);
+                if(index === -1) throw new Error(`Coluna obrigatória "${reqHeader}" não encontrada no cabeçalho da planilha.`);
                 headerIndices[reqHeader] = index;
             });
             
@@ -114,24 +126,22 @@ const TransactionImportModal: React.FC<{
                     categoryName: categoryVal,
                 };
 
-                // Date Parsing (robust for raw string inputs)
+                // --- Date Parsing (Handles DD/MM/AAAA strings and Excel serial numbers) ---
                 let parsedDate: Date | null = null;
-                const dateStr = String(dateVal || '').trim();
-                if (dateStr) {
-                    const parts = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-                    if (parts) {
-                        const day = parseInt(parts[1], 10);
-                        const month = parseInt(parts[2], 10) - 1;
-                        const year = parseInt(parts[3], 10);
-                        const date = new Date(Date.UTC(year, month, day));
-                        if (date.getUTCFullYear() === year && date.getUTCMonth() === month && date.getUTCDate() === day) {
-                            parsedDate = date;
-                        }
-                    } else if (!isNaN(Number(dateStr))) {
-                        const excelSerial = Number(dateStr);
-                        if (excelSerial > 25569) {
-                            const date = new Date(Math.round((excelSerial - 25569) * 86400 * 1000));
-                            if (!isNaN(date.getTime())) {
+                if (typeof dateVal === 'number') {
+                    // Handle Excel's numeric date format.
+                    parsedDate = convertExcelSerialDate(dateVal);
+                } else {
+                    // Handle string date format.
+                    const dateStr = String(dateVal || '').trim();
+                    if (dateStr) {
+                        const parts = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+                        if (parts) {
+                            const day = parseInt(parts[1], 10);
+                            const month = parseInt(parts[2], 10) - 1; // Month is 0-indexed
+                            const year = parseInt(parts[3], 10);
+                            const date = new Date(Date.UTC(year, month, day));
+                            if (date.getUTCFullYear() === year && date.getUTCMonth() === month && date.getUTCDate() === day) {
                                 parsedDate = date;
                             }
                         }
@@ -142,30 +152,33 @@ const TransactionImportModal: React.FC<{
                     result.date = parsedDate.toISOString().split('T')[0];
                 } else {
                     result.status = 'invalid';
-                    result.message = 'Data inválida. Use DD/MM/AAAA ou formate a célula como Data.';
-                }
-
-                // --- Definitive PT-BR Value Parsing Logic ---
-                const valueStr = (valueVal === null || valueVal === undefined) ? '' : String(valueVal).trim();
-                let numValue: number;
-
-                if (valueStr === '') {
-                    numValue = NaN;
-                } else {
-                    const s = valueStr.replace("R$", "").trim();
-                    // Absolute Rule: dot is for thousands, comma is for decimals.
-                    // 1. Remove all dots (thousands separators).
-                    // 2. Replace the comma (decimal separator) with a dot for parseFloat.
-                    const standardized = s.replace(/\./g, '').replace(',', '.');
-                    numValue = parseFloat(standardized);
+                    result.message = 'Data inválida. Use DD/MM/AAAA.';
                 }
                 
+                // --- Value Parsing (Handles numbers and PT-BR currency strings) ---
+                let numValue: number;
+                if (typeof valueVal === 'number') {
+                    // Value is already a number (e.g., from a cell formatted as Currency/Number).
+                    numValue = valueVal;
+                } else {
+                    // Value is a string, needs PT-BR parsing.
+                    const valueStr = String(valueVal || '').trim();
+                    if (valueStr === '') {
+                        numValue = NaN;
+                    } else {
+                        // Handles "R$ 1.234,56" format
+                        const s = valueStr.replace(/R\$\s*/, '').trim();
+                        const standardized = s.replace(/\./g, '').replace(',', '.');
+                        numValue = parseFloat(standardized);
+                    }
+                }
+
                 if (typeof numValue === 'number' && !isNaN(numValue) && numValue !== 0) {
                     result.value = Math.abs(numValue);
-                    result.nature = TransactionNature.DESPESA; // Nature is always expense for credit card import
+                    result.nature = TransactionNature.DESPESA;
                 } else {
                     result.status = 'invalid';
-                    result.message = (result.message || '') + ' Valor inválido.';
+                    result.message = (result.message || '') + ' Valor inválido ou zero.';
                 }
                 
                 // Validate Category
@@ -234,7 +247,7 @@ const TransactionImportModal: React.FC<{
         <Modal isOpen={isOpen} onClose={handleClose} title="Importar Lançamentos de Planilha XLS">
             <div className="space-y-4">
                 <div>
-                    <label htmlFor="import-account" className="block text-sm font-medium text-gray-700">1. Selecione a Conta de Destino</label>
+                    <label htmlFor="import-account" className="block text-sm font-medium text-gray-700">1. Selecione o Cartão de Crédito</label>
                     <div className="relative mt-1">
                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                             <Banknote className="h-5 w-5 text-gray-400" />

@@ -75,8 +75,8 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
 
     log.info('Iniciando digitalização do recibo...');
     try {
-      // FIX: The placeholder string for the API key was incorrect, causing a static analysis error.
-      if (!GEMINI_API_KEY || GEMINI_API_KEY === "AIzaSyAsjrqN8VIYVr9z37vEHXw5YJEj4orX-OkOLE_SUA_CHAVE_DE_API_AQUI") {
+      // FIX: Corrected the placeholder string in the comparison to match the constant value from supabase/client.ts, resolving the type error.
+      if (!GEMINI_API_KEY || GEMINI_API_KEY === "AIzaSyAsjrqN8VIYVr9z37vEHXw5YJEj4orX-Ok") {
         log.error("A chave de API do Gemini não foi configurada no arquivo supabase/client.ts.");
         throw new Error("API_KEY_NOT_CONFIGURED");
       }
