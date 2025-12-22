@@ -1,24 +1,17 @@
 
 import React, { useState, useCallback } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
 
-interface ScannedData {
-  value: number;
-  date: string;
-  description: string;
-  scannedImage: string;
-}
-
-interface ReceiptScannerModalProps {
+interface DocumentScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onScanComplete: (data: ScannedData) => void;
+  onScanComplete: (base64Image: string) => void;
 }
 
-const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClose, onScanComplete }) => {
+const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onClose, onScanComplete }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -81,89 +74,53 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       };
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: { parts: [
-            { text: `Você é um assistente de digitalização financeira. Sua tarefa é dupla:
-1.  **Extrair Dados:** Analise a imagem do recibo e extraia o valor total, a data da transação (no formato AAAA-MM-DD) e uma breve descrição ou nome do estabelecimento. Se a data não for encontrada, use a data de hoje. Se o valor não for encontrado, use 0.
-2.  **Limpar Imagem:** Aja como um scanner profissional. Corrija a perspectiva, remova sombras, aumente o contraste e retorne uma imagem limpa do recibo com fundo branco.
-
-Retorne um único objeto JSON contendo os dados extraídos e a imagem limpa em formato base64.` }, 
-            imagePart
-        ]},
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    value: { type: Type.NUMBER, description: 'Valor total da compra, use ponto como separador decimal.' },
-                    date: { type: Type.STRING, description: 'Data da transação no formato AAAA-MM-DD.' },
-                    description: { type: Type.STRING, description: 'Nome do estabelecimento ou descrição da compra.' },
-                    scannedImage: { type: Type.STRING, description: 'A imagem do recibo, limpa e codificada em base64.' }
-                },
-                required: ["value", "date", "description", "scannedImage"]
-            }
-        }
-      });
-      
-      let parsedData;
-      const textResponse = response.text?.trim();
-
-      if (!textResponse) {
-        throw new Error("A IA retornou uma resposta vazia.");
-      }
-      
-      try {
-        parsedData = JSON.parse(textResponse);
-      } catch (e) {
-        console.warn("Análise direta de JSON falhou, tentando extrair de markdown.", e);
-        const jsonMatch = textResponse.match(/```(?:json)?\s*([\s\S]+?)\s*```/);
-        if (jsonMatch && jsonMatch[1]) {
-          try {
-            parsedData = JSON.parse(jsonMatch[1]);
-          } catch (e2) {
-             console.error("Falha ao analisar JSON mesmo após extrair de markdown.", e2);
-             throw new Error("A resposta da IA não continha um JSON válido.");
+          model: 'gemini-2.5-flash-image',
+          contents: {
+              parts: [
+                  { text: 'Aja como um scanner de documentos profissional. Pegue esta imagem de um documento, alinhe-o, centralize, corrija a perspectiva, remova sombras, aumente o contraste e retorne uma imagem limpa e nítida com um fundo perfeitamente branco. O resultado deve se parecer com um documento digitalizado por uma impressora multifuncional de alta qualidade.' },
+                  imagePart
+              ]
           }
-        } else {
-          throw new Error("A resposta da IA não estava no formato JSON esperado.");
-        }
+      });
+
+      let scannedImage = '';
+      const imagePartResponse = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
+      if (imagePartResponse && imagePartResponse.inlineData) {
+          scannedImage = imagePartResponse.inlineData.data;
+      } else {
+          console.warn("Não foi possível obter uma imagem digitalizada, usando a original.");
+          scannedImage = base64Image;
       }
 
-
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(parsedData.date)) {
-        console.warn("Formato de data inválido da IA, usando data de hoje.", parsedData.date);
-        parsedData.date = new Date().toISOString().split('T')[0];
-      }
-      
-      onScanComplete(parsedData);
+      onScanComplete(scannedImage);
       handleClose();
 
     } catch (error) {
-      console.error("Erro ao digitalizar recibo:", error);
-      setScanError('A IA não conseguiu processar a imagem. Por favor, tente novamente.');
+      console.error("Erro ao digitalizar documento:", error);
+      setScanError('Não foi possível processar o documento. Tente novamente com uma imagem mais nítida.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Digitalizar Recibo com IA">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Digitalizar Documento">
       <div className="space-y-4">
         {previewUrl ? (
           <div className="text-center">
-            <img src={previewUrl} alt="Pré-visualização do recibo" className="max-h-60 w-auto inline-block rounded-md border" />
+            <img src={previewUrl} alt="Pré-visualização do documento" className="max-h-60 w-auto inline-block rounded-md border" />
           </div>
         ) : (
           <div
             onDrop={onDrop}
             onDragOver={onDragOver}
             className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
-            onClick={() => document.getElementById('file-upload')?.click()}
+            onClick={() => document.getElementById('doc-file-upload')?.click()}
           >
             <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
-            <p className="mt-2 text-sm text-gray-600">Arraste e solte o recibo aqui, ou clique para selecionar</p>
+            <p className="mt-2 text-sm text-gray-600">Arraste e solte o documento aqui, ou clique para selecionar</p>
             <p className="text-xs text-gray-500">PNG, JPG ou WEBP</p>
-            <input id="file-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+            <input id="doc-file-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </div>
         )}
 
@@ -192,12 +149,12 @@ Retorne um único objeto JSON contendo os dados extraídos e a imagem limpa em f
                 {isLoading ? (
                     <>
                         <Loader2 size={20} className="animate-spin" />
-                        Analisando...
+                        Digitalizando...
                     </>
                 ) : (
                     <>
                         <ScanLine size={20} />
-                        Analisar Recibo
+                        Digitalizar
                     </>
                 )}
             </button>
@@ -207,4 +164,4 @@ Retorne um único objeto JSON contendo os dados extraídos e a imagem limpa em f
   );
 };
 
-export default ReceiptScannerModal;
+export default DocumentScannerModal;

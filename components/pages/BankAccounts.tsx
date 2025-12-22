@@ -29,37 +29,37 @@ const BankAccountForm: React.FC<{
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="accountName" className="block text-sm font-medium text-slate-600">Nome da Conta</label>
+        <label htmlFor="accountName" className="block text-sm font-medium text-gray-600">Nome da Conta</label>
         <input
           id="accountName"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition"
+          className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
           placeholder="Ex: Conta Principal"
         />
         {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
       </div>
        <div>
-        <label htmlFor="accountType" className="block text-sm font-medium text-slate-600">Tipo de Conta</label>
+        <label htmlFor="accountType" className="block text-sm font-medium text-gray-600">Tipo de Conta</label>
         <select
           id="accountType"
           value={type}
           onChange={(e) => setType(e.target.value as AccountType)}
-          className="mt-1 w-full px-3 py-2 border border-slate-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition"
+          className="mt-1 w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
         >
           <option value={AccountType.CONTA_CORRENTE}>Conta Corrente</option>
           <option value={AccountType.CONTA_POUPANCA}>Conta Poupança</option>
         </select>
       </div>
       <div>
-        <label htmlFor="initialBalance" className="block text-sm font-medium text-slate-600">Saldo Atual</label>
+        <label htmlFor="initialBalance" className="block text-sm font-medium text-gray-600">Saldo Atual</label>
         <CurrencyInput value={initialBalance} onChange={setInitialBalance} id="initialBalance"/>
-        <p className="text-xs text-slate-500 mt-1">Este será o saldo base para todos os cálculos.</p>
+        <p className="text-xs text-gray-500 mt-1">Este será o saldo base para todos os cálculos.</p>
       </div>
       <div className="flex justify-end gap-3 pt-4">
-        <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 text-slate-700 rounded-md hover:bg-slate-300 transition-colors">Cancelar</button>
-        <button type="submit" className="px-4 py-2 bg-sky-600 text-white rounded-md hover:bg-sky-700 transition-colors font-semibold shadow">Confirmar</button>
+        <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">Cancelar</button>
+        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow">Confirmar</button>
       </div>
     </form>
   );
@@ -96,15 +96,15 @@ const BankAccounts: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800">Contas Bancárias</h1>
-          <p className="text-slate-500 mt-1">Gerencie as contas que serão a base do sistema.</p>
+          <h1 className="text-3xl font-bold text-gray-800">Contas Bancárias</h1>
+          <p className="text-gray-500 mt-1">Gerencie as contas que serão a base do sistema.</p>
         </div>
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors font-semibold shadow-md w-full sm:w-auto"
+          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow w-full sm:w-auto"
         >
           <Plus size={20} />
           Criar Conta Bancária
@@ -113,33 +113,34 @@ const BankAccounts: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {accounts.length === 0 ? (
-          <div className="md:col-span-2 lg:col-span-3 text-center py-12 bg-white rounded-xl shadow-sm">
-            <p className="text-slate-500">Nenhuma conta bancária cadastrada.</p>
-            <p className="text-slate-400 text-sm mt-1">Clique em "Criar Conta Bancária" para adicionar a primeira.</p>
+          <div className="md:col-span-2 lg:col-span-3 text-center py-16 bg-white rounded-2xl shadow-sm">
+            <Landmark className="mx-auto h-12 w-12 text-gray-300" />
+            <p className="text-gray-500 mt-4">Nenhuma conta bancária cadastrada.</p>
+            <p className="text-gray-400 text-sm mt-1">Clique em "Criar Conta Bancária" para adicionar a primeira.</p>
           </div>
         ) : (
           accounts.map(acc => (
-            <div key={acc.id} className="bg-white p-6 rounded-xl shadow-sm flex flex-col justify-between hover:shadow-lg transition-shadow">
+            <div key={acc.id} className="bg-white p-6 rounded-2xl shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
               <div>
                 <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-slate-100 p-3 rounded-full">
-                       <Landmark className="w-6 h-6 text-sky-700" />
+                  <div className="flex items-center gap-4">
+                    <div className="bg-blue-100 p-3 rounded-full">
+                       <Landmark className="w-6 h-6 text-blue-600" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-lg text-slate-800">{acc.name}</h3>
-                      <p className="text-sm text-slate-500">{acc.type}</p>
+                      <h3 className="font-bold text-lg text-gray-800">{acc.name}</h3>
+                      <p className="text-sm text-gray-500">{acc.type}</p>
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 text-center">
-                  <p className="text-sm text-slate-500">Saldo Atual Calculado</p>
-                  <p className="text-3xl font-bold text-slate-700">{formatCurrency(calculateCurrentBalance(acc.id))}</p>
+                <div className="mt-6 text-left">
+                  <p className="text-sm text-gray-500">Saldo Atual Calculado</p>
+                  <p className="text-3xl font-bold text-gray-800">{formatCurrency(calculateCurrentBalance(acc.id))}</p>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
-                <button onClick={() => handleOpenModal(acc)} className="p-2 text-slate-500 hover:text-sky-600 transition-colors"><Edit size={18} /></button>
-                <button onClick={() => handleDelete(acc.id)} className="p-2 text-slate-500 hover:text-rose-600 transition-colors"><Trash2 size={18} /></button>
+              <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
+                <button onClick={() => handleOpenModal(acc)} className="p-2 text-gray-400 hover:text-blue-600 rounded-full transition-colors"><Edit size={18} /></button>
+                <button onClick={() => handleDelete(acc.id)} className="p-2 text-gray-400 hover:text-red-600 rounded-full transition-colors"><Trash2 size={18} /></button>
               </div>
             </div>
           ))
