@@ -85,12 +85,19 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
         model: 'gemini-2.5-flash-image',
       };
       log.info('Enviando requisição para a IA (Documento)...', requestPayload);
+      
+      const cleaningPrompt = `Aja como um scanner de documentos profissional e realize um pós-processamento completo na imagem deste documento. O objetivo é gerar um documento limpo, nítido e perfeitamente legível, ideal para arquivamento e prestação de contas. Execute as seguintes ações:
+1. **Detecção e Alinhamento:** Detecte as bordas do documento, corrija a perspectiva e qualquer ângulo torto, e centralize o documento na imagem.
+2. **Limpeza de Fundo:** Remova completamente o fundo original, substituindo-o por um fundo perfeitamente branco e uniforme.
+3. **Ajuste de Qualidade:** Aumente o contraste e a nitidez para garantir que o texto seja escuro e totalmente legível.
+4. **Remoção de Imperfeições:** Elimine quaisquer sombras, reflexos, borrões ou outras distorções visuais.
+O resultado final deve ser idêntico a um documento digitalizado por um scanner de alta qualidade.`;
 
       const apiCallPromise = ai.models.generateContent({
           model: 'gemini-2.5-flash-image',
           contents: {
               parts: [
-                  { text: 'Aja como um scanner de documentos profissional. Pegue esta imagem de um documento, alinhe-o, centralize, corrija a perspectiva, remova sombras, aumente o contraste e retorne uma imagem limpa e nítida com um fundo perfeitamente branco. O resultado deve se parecer com um documento digitalizado por uma impressora multifuncional de alta qualidade.' },
+                  { text: cleaningPrompt },
                   imagePart
               ]
           }
