@@ -90,49 +90,43 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
         },
       };
 
-      // --- Chamadas paralelas para a IA ---
+      // --- Chamadas sequenciais para a IA para maior compatibilidade ---
+      log.info('Iniciando chamadas sequenciais para a IA para maior compatibilidade (Safari).');
 
-      // 1. Promessa para extrair dados
-      const extractDataPromise = () => {
-        const dataPrompt = `Analise a imagem do recibo e extraia o valor total da transação (use ponto como separador decimal), a data (no formato AAAA-MM-DD) e o nome do estabelecimento ou uma breve descrição da compra. Se a data não for encontrada, use a data de hoje. Se o valor não for encontrado, use 0.`;
-        return ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
-          contents: { parts: [{ text: dataPrompt }, imagePart] },
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                value: { type: Type.NUMBER, description: 'Valor total da compra, use ponto como separador decimal.' },
-                date: { type: Type.STRING, description: 'Data da transação no formato AAAA-MM-DD.' },
-                description: { type: Type.STRING, description: 'Nome do estabelecimento ou descrição da compra.' },
-              },
-              required: ["value", "date", "description"]
-            }
+      // 1. Extrair dados
+      log.info('Executando extração de dados...');
+      const dataPrompt = `Analise a imagem do recibo e extraia o valor total da transação (use ponto como separador decimal), a data (no formato AAAA-MM-DD) e o nome do estabelecimento ou uma breve descrição da compra. Se a data não for encontrada, use a data de hoje. Se o valor não for encontrado, use 0.`;
+      const dataResponse = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: { parts: [{ text: dataPrompt }, imagePart] },
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              value: { type: Type.NUMBER, description: 'Valor total da compra, use ponto como separador decimal.' },
+              date: { type: Type.STRING, description: 'Data da transação no formato AAAA-MM-DD.' },
+              description: { type: Type.STRING, description: 'Nome do estabelecimento ou descrição da compra.' },
+            },
+            required: ["value", "date", "description"]
           }
-        });
-      };
-
-      // 2. Promessa para limpar a imagem
-      const cleanImagePromise = () => {
-        const cleaningPrompt = `Aja como um scanner de documentos profissional e realize um pós-processamento completo na imagem deste recibo. O objetivo é gerar um documento limpo, nítido e perfeitamente legível, ideal para arquivamento e prestação de contas. Execute as seguintes ações:
+        }
+      });
+      log.info('Extração de dados concluída.');
+      
+      // 2. Limpar a imagem
+      log.info('Executando limpeza da imagem...');
+      const cleaningPrompt = `Aja como um scanner de documentos profissional e realize um pós-processamento completo na imagem deste recibo. O objetivo é gerar um documento limpo, nítido e perfeitamente legível, ideal para arquivamento e prestação de contas. Execute as seguintes ações:
 1. **Detecção e Alinhamento:** Detecte as bordas do documento, corrija a perspectiva e qualquer ângulo torto, e centralize o recibo na imagem.
 2. **Limpeza de Fundo:** Remova completamente o fundo original, substituindo-o por um fundo perfeitamente branco e uniforme.
 3. **Ajuste de Qualidade:** Aumente o contraste e a nitidez para garantir que o texto seja escuro e totalmente legível.
 4. **Remoção de Imperfeições:** Elimine quaisquer sombras, reflexos, borrões ou outras distorções visuais.
 O resultado final deve ser idêntico a um documento digitalizado por um scanner de alta qualidade.`;
-        return ai.models.generateContent({
-          model: 'gemini-2.5-flash-image',
-          contents: { parts: [{ text: cleaningPrompt }, imagePart] }
-        });
-      };
-      
-      log.info('Executando extração de dados e limpeza de imagem em paralelo...');
-      const [dataResponse, imageResponse] = await Promise.all([
-        extractDataPromise(),
-        cleanImagePromise()
-      ]);
-      log.info('Ambas as respostas da IA foram recebidas.');
+      const imageResponse = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: { parts: [{ text: cleaningPrompt }, imagePart] }
+      });
+      log.info('Limpeza da imagem concluída. Ambas as respostas da IA foram recebidas.');
 
       // Processando os resultados
       // FIX: Add check for dataResponse.text to prevent crash on trim().
