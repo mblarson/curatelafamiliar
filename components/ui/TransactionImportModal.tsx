@@ -49,6 +49,7 @@ const TransactionImportModal: React.FC<{
     const [selectedAccountId, setSelectedAccountId] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [progress, setProgress] = useState(0);
 
     const resetState = useCallback(() => {
         setFile(null);
@@ -56,6 +57,7 @@ const TransactionImportModal: React.FC<{
         // Don't reset selectedAccountId
         setIsLoading(false);
         setError(null);
+        setProgress(0);
     }, []);
 
     const handleClose = useCallback(() => {
@@ -70,6 +72,7 @@ const TransactionImportModal: React.FC<{
         setError(null);
         setParsedTransactions([]);
         setFile(selectedFile);
+        setProgress(0);
 
         try {
             const data = await selectedFile.arrayBuffer();
@@ -93,8 +96,10 @@ const TransactionImportModal: React.FC<{
             const categoryMap = new Map(categories.map(c => [c.name.toLowerCase(), c]));
             const processed: ParsedTransaction[] = [];
             const rows = json.slice(1);
+            const totalRows = rows.length;
 
-            for (const row of rows) {
+            for (let i = 0; i < totalRows; i++) {
+                const row = rows[i];
                 if(row.every(cell => cell === null || cell === undefined || cell === '')) continue; // Skip empty rows
 
                 const dateVal = row[headerIndices.data];
@@ -151,11 +156,24 @@ const TransactionImportModal: React.FC<{
                     result.message = 'Data inválida. Use DD/MM/AAAA ou formate a célula como Data.';
                 }
 
-
-                // Validate Value
-                const numValue = typeof valueVal === 'string' 
-                    ? parseFloat(valueVal.replace(/\./g, '').replace(',', '.')) 
-                    : valueVal;
+                // Validate Value - More robust parsing for different currency formats
+                let numValue: number;
+                if (typeof valueVal === 'number') {
+                    numValue = valueVal;
+                } else if (typeof valueVal === 'string') {
+                    const s = String(valueVal).trim();
+                    if (s.includes(',')) {
+                        // Contains a comma, assume pt-BR format like "1.234,56"
+                        numValue = parseFloat(s.replace(/\./g, '').replace(',', '.'));
+                    } else {
+                        // No comma, assume format like "1234.56" or "1,234.56"
+                        // Here we only remove commas, treating dots as potential decimal separators.
+                        numValue = parseFloat(s.replace(/,/g, ''));
+                    }
+                } else {
+                    numValue = NaN;
+                }
+                
                 if (typeof numValue === 'number' && !isNaN(numValue) && numValue !== 0) {
                     result.value = Math.abs(numValue);
                     result.nature = TransactionNature.DESPESA; // Nature is always expense for credit card import
@@ -178,6 +196,12 @@ const TransactionImportModal: React.FC<{
                     result.message = (result.message || '') + ` Categoria '${categoryVal}' não encontrada.`;
                 }
                 processed.push(result as ParsedTransaction);
+
+                const currentProgress = Math.round(((i + 1) / totalRows) * 100);
+                setProgress(currentProgress);
+                if (i % 20 === 0 || i === totalRows - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
             }
             setParsedTransactions(processed);
         } catch (err) {
@@ -233,7 +257,7 @@ const TransactionImportModal: React.FC<{
                             id="import-account"
                             value={selectedAccountId}
                             onChange={(e) => setSelectedAccountId(e.target.value)}
-                            disabled={!!file}
+                            disabled={!!file || isLoading}
                             className="block w-full rounded-md border-gray-300 pl-10 focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border bg-white disabled:bg-gray-100"
                         >
                             <option value="">Selecione uma conta...</option>
@@ -242,16 +266,29 @@ const TransactionImportModal: React.FC<{
                     </div>
                 </div>
 
-                {!file ? (
-                     <div className={!selectedAccountId ? 'opacity-50 cursor-not-allowed' : ''}>
+                {isLoading ? (
+                    <div className="space-y-4 text-center p-8 bg-gray-50 rounded-lg">
+                        <Loader2 className="mx-auto h-12 w-12 text-blue-600 animate-spin" />
+                        <p className="font-semibold text-gray-700">Analisando sua planilha...</p>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                            <div 
+                                className="bg-blue-600 h-2.5 rounded-full transition-all duration-150 ease-linear" 
+                                style={{ width: `${progress}%` }}
+                            ></div>
+                        </div>
+                        <p className="text-sm text-gray-500">{progress}% concluído</p>
+                    </div>
+                ) : !file ? (
+                     <div className={!selectedAccountId ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-blue-500 hover:bg-blue-50/50 transition-colors'}>
                         <div
                             onDrop={(e) => { e.preventDefault(); if(selectedAccountId) handleFileSelect(e.dataTransfer.files[0]) }}
                             onDragOver={(e) => e.preventDefault()}
+                            onClick={() => { if (selectedAccountId) document.getElementById('xls-trans-upload')?.click() }}
                             className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center"
                         >
                             <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
                             <p className="mt-2 text-sm text-gray-600">
-                                {selectedAccountId ? '2. Arraste ou selecione o arquivo XLS' : 'Selecione uma conta para continuar'}
+                                {selectedAccountId ? '2. Arraste ou clique para selecionar o arquivo XLS' : 'Selecione uma conta para continuar'}
                             </p>
                             <input id="xls-trans-upload" type="file" accept=".xls,.xlsx" className="hidden" disabled={!selectedAccountId} onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])} />
                         </div>
