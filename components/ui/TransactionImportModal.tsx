@@ -108,17 +108,35 @@ const TransactionImportModal: React.FC<{
                     categoryName: categoryVal,
                 };
 
-                // Validate Date
+                // Validate Date - Robust Parsing
                 let parsedDate: Date | null = null;
+                // 1. Handle valid Date objects from sheetjs
                 if (dateVal instanceof Date && !isNaN(dateVal.getTime())) {
                     parsedDate = dateVal;
-                } else if (typeof dateVal === 'string') {
-                    const parts = dateVal.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+                } 
+                // 2. Handle numeric Excel dates
+                else if (typeof dateVal === 'number') {
+                    // Excel's epoch starts on 1899-12-30. The number of days between that and Unix epoch is 25569.
+                    // We create a date in UTC to avoid timezone issues.
+                    const date = new Date(Math.round((dateVal - 25569) * 86400 * 1000));
+                    if (!isNaN(date.getTime())) {
+                        parsedDate = date;
+                    }
+                }
+                // 3. Handle string dates in DD/MM/AAAA format
+                else if (typeof dateVal === 'string') {
+                    const trimmedDateVal = dateVal.trim();
+                    const parts = trimmedDateVal.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
                     if (parts) {
+                        // parts[1] = DD, parts[2] = MM, parts[3] = AAAA
                         const day = parseInt(parts[1], 10);
                         const month = parseInt(parts[2], 10) - 1; // JS months are 0-indexed
                         const year = parseInt(parts[3], 10);
+                        
+                        // Create date in UTC to avoid local timezone from shifting the date
                         const date = new Date(Date.UTC(year, month, day));
+                        
+                        // Validate if the created date is what we expect (e.g., handles 32/02/2024)
                         if (date.getUTCFullYear() === year && date.getUTCMonth() === month && date.getUTCDate() === day) {
                             parsedDate = date;
                         }
@@ -126,11 +144,13 @@ const TransactionImportModal: React.FC<{
                 }
 
                 if (parsedDate) {
+                    // We have a valid Date object, now convert it to 'YYYY-MM-DD' string for storage
                     result.date = parsedDate.toISOString().split('T')[0];
                 } else {
                     result.status = 'invalid';
-                    result.message = 'Data inválida. Use o formato DD/MM/AAAA.';
+                    result.message = 'Data inválida. Use DD/MM/AAAA ou formate a célula como Data.';
                 }
+
 
                 // Validate Value
                 const numValue = typeof valueVal === 'string' ? parseFloat(valueVal.replace(',', '.')) : valueVal;
