@@ -3,6 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
+import { useLogger } from '../../hooks/useLogger';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
 
 interface ScannedData {
@@ -23,6 +24,7 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [scanError, setScanError] = useState('');
+  const log = useLogger();
 
   const resetState = () => {
     setSelectedFile(null);
@@ -69,6 +71,7 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
     setIsLoading(true);
     setScanError('');
 
+    log.info('Iniciando digitalização do recibo...');
     try {
       const base64Image = await fileToBase64(selectedFile);
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
@@ -80,6 +83,11 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
         },
       };
 
+      const requestPayload = {
+        model: 'gemini-3-flash-preview',
+        // O resto do payload contém dados sensíveis (imagem), então o omitimos dos logs.
+      };
+      log.info('Enviando requisição para a IA...', requestPayload);
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: { parts: [
@@ -105,23 +113,26 @@ Retorne um único objeto JSON contendo os dados extraídos e a imagem limpa em f
         }
       });
       
+      log.info('Resposta da IA recebida.', response);
       let parsedData;
       const textResponse = response.text?.trim();
 
       if (!textResponse) {
+        log.error('A resposta da IA estava vazia ou nula.', { response });
         throw new Error("A IA retornou uma resposta vazia.");
       }
+      log.info('Texto extraído da resposta:', { textResponse });
       
       try {
         parsedData = JSON.parse(textResponse);
       } catch (e) {
-        console.warn("Análise direta de JSON falhou, tentando extrair de markdown.", e);
+        log.warn("Análise direta de JSON falhou, tentando extrair de markdown.", { error: e, textResponse });
         const jsonMatch = textResponse.match(/```(?:json)?\s*([\s\S]+?)\s*```/);
         if (jsonMatch && jsonMatch[1]) {
           try {
             parsedData = JSON.parse(jsonMatch[1]);
           } catch (e2) {
-             console.error("Falha ao analisar JSON mesmo após extrair de markdown.", e2);
+             log.error("Falha ao analisar JSON mesmo após extrair de markdown.", { error: e2, extractedText: jsonMatch[1] });
              throw new Error("A resposta da IA não continha um JSON válido.");
           }
         } else {
@@ -131,15 +142,16 @@ Retorne um único objeto JSON contendo os dados extraídos e a imagem limpa em f
 
 
       if (!/^\d{4}-\d{2}-\d{2}$/.test(parsedData.date)) {
-        console.warn("Formato de data inválido da IA, usando data de hoje.", parsedData.date);
+        log.warn("Formato de data inválido da IA, usando data de hoje.", { date: parsedData.date });
         parsedData.date = new Date().toISOString().split('T')[0];
       }
       
+      log.info('Digitalização concluída com sucesso.', parsedData);
       onScanComplete(parsedData);
       handleClose();
 
     } catch (error) {
-      console.error("Erro ao digitalizar recibo:", error);
+      log.error("Erro ao digitalizar recibo.", { error });
       setScanError('A IA não conseguiu processar a imagem. Por favor, tente novamente.');
     } finally {
       setIsLoading(false);

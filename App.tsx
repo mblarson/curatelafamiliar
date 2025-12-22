@@ -4,6 +4,7 @@ import Categories from './components/pages/Categories';
 import BankAccounts from './components/pages/BankAccounts';
 import Transactions from './components/pages/Transactions';
 import Reports from './components/pages/Reports';
+import Console from './components/ui/Console';
 import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPulse } from 'lucide-react';
 
 type Page = 'Dashboard' | 'Conta Bancária' | 'Categorias' | 'Conta Corrente' | 'Cartão de Crédito';
@@ -107,6 +108,9 @@ const App: React.FC = () => {
           onClick={() => setIsSidebarOpen(false)}
         ></div>
       )}
+
+      {/* Robust Console for Debugging */}
+      <Console />
     </div>
   );
 };

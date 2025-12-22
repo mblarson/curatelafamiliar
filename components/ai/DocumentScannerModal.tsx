@@ -3,6 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
+import { useLogger } from '../../hooks/useLogger';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
 
 interface DocumentScannerModalProps {
@@ -16,6 +17,7 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [scanError, setScanError] = useState('');
+  const log = useLogger();
 
   const resetState = () => {
     setSelectedFile(null);
@@ -62,6 +64,7 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
     setIsLoading(true);
     setScanError('');
 
+    log.info('Iniciando digitalização de documento...');
     try {
       const base64Image = await fileToBase64(selectedFile);
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
@@ -73,6 +76,11 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
         },
       };
 
+      const requestPayload = {
+        model: 'gemini-2.5-flash-image',
+      };
+      log.info('Enviando requisição para a IA (Documento)...', requestPayload);
+
       const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash-image',
           contents: {
@@ -83,20 +91,22 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
           }
       });
 
+      log.info('Resposta da IA (Documento) recebida.', response);
       let scannedImage = '';
       const imagePartResponse = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
       if (imagePartResponse && imagePartResponse.inlineData) {
           scannedImage = imagePartResponse.inlineData.data;
       } else {
-          console.warn("Não foi possível obter uma imagem digitalizada, usando a original.");
+          log.warn("Não foi possível obter uma imagem digitalizada, usando a original.", { response });
           scannedImage = base64Image;
       }
 
+      log.info('Digitalização de documento concluída com sucesso.');
       onScanComplete(scannedImage);
       handleClose();
 
     } catch (error) {
-      console.error("Erro ao digitalizar documento:", error);
+      log.error("Erro ao digitalizar documento.", { error });
       setScanError('Não foi possível processar o documento. Tente novamente com uma imagem mais nítida.');
     } finally {
       setIsLoading(false);
