@@ -3,6 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = "https://wjgvusaiwyapldzyhhqz.supabase.co";
 const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqZ3Z1c2Fpd3lhcGxkenloaHF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNTY0MjcsImV4cCI6MjA3OTczMjQyN30.6tdjx7wIX3ZXrlBt2KxY1aV3_bbX1IkrQbNiRseTipQ";
 
+// IMPORTANTE: Cole sua Chave de API da Gemini aqui.
+// Você pode obter uma chave em https://ai.google.dev/
+export const GEMINI_API_KEY = "COLE_SUA_CHAVE_DE_API_AQUI";
+
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export const base64ToBlob = (base64: string, contentType: string = 'image/jpeg'): Blob => {

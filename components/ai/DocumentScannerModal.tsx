@@ -3,9 +3,8 @@ import { GoogleGenAI } from "@google/genai";
 import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { useLogger } from '../../hooks/useLogger';
+import { GEMINI_API_KEY } from '../../supabase/client';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
-
-// FIX: API key is now handled via environment variables as per guidelines.
 
 interface DocumentScannerModalProps {
   isOpen: boolean;
@@ -67,16 +66,16 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
 
     log.info('Iniciando digitalização de documento...');
     try {
+      if (GEMINI_API_KEY === "COLE_SUA_CHAVE_DE_API_AQUI" || !GEMINI_API_KEY) {
+        log.error("A chave de API da Gemini não foi configurada no arquivo supabase/client.ts.");
+        throw new Error("API_KEY_NOT_CONFIGURED");
+      }
+      
       log.info('Comprimindo imagem...');
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
       log.info('Imagem comprimida.');
 
-      if (!process.env.API_KEY) {
-        log.error("Chave de API (API_KEY) não encontrada nas variáveis de ambiente.");
-        throw new Error("API_KEY_MISSING");
-      }
-
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
       const imagePart = {
         inlineData: {
@@ -128,13 +127,12 @@ O resultado final deve ser idêntico a um documento digitalizado por um scanner 
       handleClose();
 
     } catch (error) {
-      // Log the entire error object for detailed debugging
       log.error("Ocorreu um erro detalhado ao digitalizar o documento", { error });
 
       let userMessage = 'Não foi possível processar o documento. Verifique o console para detalhes técnicos.';
       if (error instanceof Error) {
-          if (error.message === "API_KEY_MISSING") {
-            userMessage = "A aplicação não está configurada corretamente. A chave de API está faltando.";
+          if (error.message === "API_KEY_NOT_CONFIGURED") {
+            userMessage = "Atenção Desenvolvedor: A chave de API da Gemini não foi configurada no arquivo supabase/client.ts.";
           } else if (error.message === 'API_TIMEOUT') {
               userMessage = 'A análise demorou muito (timeout). Tente novamente com uma imagem menor.';
           } else {

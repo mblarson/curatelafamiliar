@@ -25,6 +25,11 @@ interface AppContextType {
   deleteDocument: (id: string) => Promise<void>;
   
   calculateCurrentBalance: (accountId: string) => number;
+
+  // Fix: Add apiKey properties to the context type to resolve errors in SettingsModal.
+  apiKey: string | null;
+  saveApiKey: (key: string) => void;
+  clearApiKey: () => void;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -35,6 +40,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  // Fix: Add state for API key, initialized from localStorage.
+  const [apiKey, setApiKey] = useState<string | null>(() => {
+    return localStorage.getItem('gemini_api_key');
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -51,17 +60,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (transactionsRes.error) throw transactionsRes.error;
         if (documentsRes.error) throw documentsRes.error;
         
-        const typedAccounts = accountsRes.data.map(a => ({...a, dataAbertura: a.dataAbertura.split('T')[0]}));
-        const typedTransactions = transactionsRes.data.map(t => ({...t, date: t.date.split('T')[0]}));
+        const typedAccounts = (accountsRes.data || []).map(a => ({...a, dataAbertura: a.dataAbertura.split('T')[0]}));
+        const typedTransactions = (transactionsRes.data || []).map(t => ({...t, date: t.date.split('T')[0]}));
 
-        setAccounts(typedAccounts || []);
+        setAccounts(typedAccounts);
         setCategories(categoriesRes.data || []);
-        setTransactions(typedTransactions || []);
+        setTransactions(typedTransactions);
         setDocuments(documentsRes.data || []);
 
-      } catch (error: any) {
+      } catch (error: any)
+      {
         console.error("Error fetching initial data:", error.message || error);
-        console.error("Full error object:", error);
       } finally {
         setIsLoading(false);
       }
@@ -70,6 +79,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     fetchData();
   }, []);
 
+  // Fix: Add API key management functions.
+  const saveApiKey = (key: string) => {
+    localStorage.setItem('gemini_api_key', key);
+    setApiKey(key);
+  };
+  
+  const clearApiKey = () => {
+    localStorage.removeItem('gemini_api_key');
+    setApiKey(null);
+  };
 
   // Accounts CRUD
   const addAccount = async (accountData: Omit<BankAccount, 'id'>): Promise<BankAccount | null> => {
@@ -92,7 +111,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setAccounts(prev => prev.map(acc => acc.id === updatedAccount.id ? updatedAccount : acc));
   };
   const deleteAccount = async (id: string) => {
-    // RLS and CASCADE delete in Supabase will handle associated transactions
     const { error } = await supabase.from('accounts').delete().eq('id', id);
     if (error) return console.error("Error deleting account:", error);
     setAccounts(prev => prev.filter(acc => acc.id !== id));
@@ -131,7 +149,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (uploadError) {
         console.error('Error uploading attachment:', uploadError);
-        continue; // Skip failed uploads
+        continue;
       }
       
       const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
@@ -183,7 +201,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const { data, error } = await supabase.from('documents').insert(newDocument).select();
       if (error) {
         console.error("Error saving document record:", error);
-        // Attempt to clean up orphaned storage file
         await supabase.storage.from('attachments').remove([storagePath]);
         return;
       }
@@ -201,7 +218,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       setDocuments(prev => prev.filter(d => d.id !== id));
   };
-
 
   const calculateCurrentBalance = useMemo(() => (accountId: string): number => {
     const account = accounts.find(acc => acc.id === accountId);
@@ -226,6 +242,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     transactions, addTransaction, updateTransaction, deleteTransaction,
     documents, addDocument, deleteDocument,
     calculateCurrentBalance,
+    // Fix: provide API key values in context
+    apiKey, saveApiKey, clearApiKey,
   };
 
   return (

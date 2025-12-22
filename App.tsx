@@ -6,7 +6,7 @@ import Reports from './components/pages/Reports';
 import Documents from './components/pages/Documents';
 import Console from './components/ui/Console';
 import { useAppData } from './hooks/useAppData';
-import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPulse, Settings, Loader2, FileText } from 'lucide-react';
+import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPulse, Loader2, FileText } from 'lucide-react';
 
 type Page = 'Dashboard' | 'Conta Bancária' | 'Categorias' | 'Conta Corrente' | 'Cartão de Crédito' | 'Documentos';
 
@@ -20,8 +20,7 @@ const App: React.FC = () => {
       <div className="flex h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto" />
-          <p className="mt-4 text-lg font-semibold text-gray-600">Carregando dados...</p>
-          <p className="text-sm text-gray-400">Conectando ao banco de dados.</p>
+          <p className="mt-4 text-lg font-semibold text-gray-600">Carregando...</p>
         </div>
       </div>
     );
@@ -96,8 +95,8 @@ const App: React.FC = () => {
           </ul>
         </nav>
         
-        <div>
-          <div className="text-center text-xs text-gray-400 mt-4">
+        <div className="border-t border-gray-100 pt-4">
+          <div className="text-center text-xs text-gray-400 pt-2">
             <p>Feito com cuidado para você.</p>
           </div>
         </div>

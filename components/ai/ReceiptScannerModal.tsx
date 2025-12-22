@@ -3,9 +3,8 @@ import { GoogleGenAI, Type } from "@google/genai";
 import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { useLogger } from '../../hooks/useLogger';
+import { GEMINI_API_KEY } from '../../supabase/client';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
-
-// FIX: API key is now handled via environment variables as per guidelines.
 
 interface ScannedData {
   value: number;
@@ -76,16 +75,16 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
 
     log.info('Iniciando digitalização do recibo...');
     try {
+      if (GEMINI_API_KEY === "COLE_SUA_CHAVE_DE_API_AQUI" || !GEMINI_API_KEY) {
+        log.error("A chave de API da Gemini não foi configurada no arquivo supabase/client.ts.");
+        throw new Error("API_KEY_NOT_CONFIGURED");
+      }
+      
       log.info('Comprimindo e convertendo imagem para base64...');
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
       log.info('Imagem processada. Enviando para a IA...');
-
-      if (!process.env.API_KEY) {
-        log.error("Chave de API (API_KEY) não encontrada nas variáveis de ambiente.");
-        throw new Error("API_KEY_MISSING");
-      }
       
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
       const imagePart = {
         inlineData: {
@@ -165,19 +164,17 @@ O resultado final deve ser idêntico a um documento digitalizado por um scanner 
       handleClose();
 
     } catch (error) {
-      // Log the entire error object for detailed debugging
       log.error("Ocorreu um erro detalhado ao digitalizar o recibo", { error });
 
       let userMessage = 'A IA não conseguiu processar a imagem. Verifique o console para detalhes técnicos e tente novamente.';
       if (error instanceof Error) {
-        if (error.message === "API_KEY_MISSING") {
-          userMessage = "A aplicação não está configurada corretamente. A chave de API está faltando.";
+        if (error.message === "API_KEY_NOT_CONFIGURED") {
+          userMessage = "Atenção Desenvolvedor: A chave de API da Gemini não foi configurada no arquivo supabase/client.ts.";
         } else if (error.message.includes('JSON')) {
           userMessage = 'A IA retornou um formato inválido. Tente uma imagem mais nítida.';
         } else if (error.message.toLowerCase().includes('api key')) {
-          userMessage = 'Erro de autenticação com a API. Verifique a chave de API configurada.';
+          userMessage = 'Erro de autenticação com a API. Verifique se a chave de API no código está correta e tente novamente.';
         } else {
-          // Attempt to get a more specific message from the error object itself
           const specificError = (error as any).cause?.toString() || error.toString();
           userMessage = `Falha na comunicação com a IA. Detalhes: ${specificError}.`;
         }
