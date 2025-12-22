@@ -5,14 +5,16 @@ import Transactions from './components/pages/Transactions';
 import Reports from './components/pages/Reports';
 import Documents from './components/pages/Documents';
 import Console from './components/ui/Console';
+import SettingsModal from './components/ui/SettingsModal';
 import { useAppData } from './hooks/useAppData';
-import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPulse, Loader2, FileText } from 'lucide-react';
+import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPulse, Loader2, FileText, Cog } from 'lucide-react';
 
 type Page = 'Dashboard' | 'Conta Bancária' | 'Categorias' | 'Conta Corrente' | 'Cartão de Crédito' | 'Documentos';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('Dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const { isLoading } = useAppData();
 
   if (isLoading) {
@@ -96,6 +98,16 @@ const App: React.FC = () => {
         </nav>
         
         <div className="border-t border-gray-100 pt-4 mt-auto">
+          <button 
+              onClick={() => {
+                setIsSettingsModalOpen(true);
+                setIsSidebarOpen(false);
+              }}
+              className="flex w-full items-center gap-3 p-3 rounded-lg text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium mb-2"
+          >
+              <Cog className="w-5 h-5" />
+              <span>Configurações</span>
+          </button>
           <div className="text-center text-xs text-gray-400 pt-2">
             <p>Feito com cuidado para você.</p>
           </div>
@@ -130,6 +142,7 @@ const App: React.FC = () => {
       
       {/* Modals */}
       <Console />
+      <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
     </div>
   );
 };

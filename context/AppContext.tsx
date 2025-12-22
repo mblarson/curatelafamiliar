@@ -28,7 +28,6 @@ interface AppContextType {
   
   calculateCurrentBalance: (accountId: string) => number;
 
-  // FIX: Add missing properties for API key management to resolve errors in SettingsModal.tsx.
   apiKey: string | null;
   saveApiKey: (key: string) => void;
   clearApiKey: () => void;
@@ -42,7 +41,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
-  // FIX: Add state and functions for API key management to resolve compile errors in SettingsModal.tsx.
   const [apiKey, setApiKey] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('gemini_api_key');
@@ -268,7 +266,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     transactions, addTransaction, addTransactionsBatch, updateTransaction, deleteTransaction,
     documents, addDocument, deleteDocument,
     calculateCurrentBalance,
-    // FIX: Add API key management functions to the context value.
     apiKey,
     saveApiKey,
     clearApiKey,

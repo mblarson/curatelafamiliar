@@ -9,7 +9,7 @@ import ViewAttachmentModal from '../ui/ViewAttachmentModal';
 import CurrencyInput from '../ui/CurrencyInput';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { generateTransactionsPDF } from '../../utils/pdfGenerator';
-import { Plus, Edit, Trash2, Download, Filter, Wallet, ScanLine, Paperclip, XCircle, Upload } from 'lucide-react';
+import { Plus, Edit, Trash2, Download, Filter, Wallet, ScanLine, Paperclip, XCircle, Upload, ArrowRight, Info } from 'lucide-react';
 
 interface ScannedData {
   value: number;
@@ -31,11 +31,18 @@ const TransactionForm: React.FC<{
     const [categoryId, setCategoryId] = useState(transactionToEdit?.categoryId || '');
     const [date, setDate] = useState(transactionToEdit?.date ? transactionToEdit.date.split('T')[0] : new Date().toISOString().split('T')[0]);
     const [value, setValue] = useState(transactionToEdit?.value || 0);
-    const [newAttachment, setNewAttachment] = useState<NewAttachment | null>(null); // Only one new attachment at a time
+    const [newAttachment, setNewAttachment] = useState<NewAttachment | null>(null);
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [step, setStep] = useState(1);
+
+    const isScannedFlow = useMemo(() => {
+      // FIX: Cast to 'unknown' first to resolve unsafe type conversion error.
+      return !!(transactionToEdit?.attachments?.[0] as unknown as NewAttachment)?.data;
+    }, [transactionToEdit]);
 
     useEffect(() => {
+        setStep(1); // Reset step on modal open/change
         if (transactionToEdit) {
             setNature(transactionToEdit.nature || TransactionNature.DESPESA);
             setDescription(transactionToEdit.description || '');
@@ -43,20 +50,21 @@ const TransactionForm: React.FC<{
             setCategoryId(transactionToEdit.categoryId || '');
             setDate(transactionToEdit.date ? transactionToEdit.date.split('T')[0] : new Date().toISOString().split('T')[0]);
             setValue(transactionToEdit.value || 0);
-            setNewAttachment(null); // Reset new attachments when editing
+            
+            // FIX: Cast to 'unknown' first to resolve unsafe type conversion error.
+            const potentialNewAttachment = transactionToEdit.attachments?.[0] as unknown as NewAttachment | undefined;
+            setNewAttachment(potentialNewAttachment?.data ? potentialNewAttachment : null);
+
+        } else { // Reset for new manual transaction
+            setNature(TransactionNature.DESPESA);
+            setDescription('');
+            setAccountId('');
+            setCategoryId('');
+            setDate(new Date().toISOString().split('T')[0]);
+            setValue(0);
+            setNewAttachment(null);
         }
     }, [transactionToEdit]);
-    
-    useEffect(() => {
-        // Pre-fill form from a new scan
-        if (transactionToEdit && 'attachments' in transactionToEdit && Array.isArray(transactionToEdit.attachments) && transactionToEdit.attachments.length > 0) {
-            const potentialNewAttachment = transactionToEdit.attachments[0] as any;
-            if(potentialNewAttachment.data) { // This is how we identify a new scan
-                setNewAttachment(potentialNewAttachment);
-            }
-        }
-    }, [transactionToEdit])
-
 
     const filteredCategories = useMemo(() => {
         return categories.filter(c => c.type === (nature as unknown as CategoryType));
@@ -72,6 +80,13 @@ const TransactionForm: React.FC<{
         return Object.keys(newErrors).length === 0;
     };
 
+    const handleNext = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        if (validate()) {
+            setStep(2);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!validate()) return;
@@ -81,80 +96,113 @@ const TransactionForm: React.FC<{
         setIsSubmitting(false);
     };
 
+    const formFields = (
+      <div className="space-y-3">
+        <div>
+            <label className="block text-sm font-medium text-gray-600 mb-2">Natureza do Lançamento</label>
+            <div className="grid grid-cols-2 gap-4">
+                <button type="button" onClick={() => { setNature(TransactionNature.RECEITA); setCategoryId(''); }} className={`p-2 rounded-lg font-semibold transition ${nature === TransactionNature.RECEITA ? 'bg-green-500 text-white ring-2 ring-green-600 ring-offset-2' : 'bg-gray-100 hover:bg-green-100'}`}>Receita</button>
+                <button type="button" onClick={() => { setNature(TransactionNature.DESPESA); setCategoryId(''); }} className={`p-2 rounded-lg font-semibold transition ${nature === TransactionNature.DESPESA ? 'bg-red-500 text-white ring-2 ring-red-600 ring-offset-2' : 'bg-gray-100 hover:bg-red-100'}`}>Despesa</button>
+            </div>
+        </div>
+        
+        <div>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-600">Descrição</label>
+            <input
+                type="text"
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ex: Compras do mês"
+            />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label htmlFor="accountId" className="block text-sm font-medium text-gray-600">Conta Bancária</label>
+                <select id="accountId" value={accountId} onChange={(e) => setAccountId(e.target.value)} className={`mt-1 w-full px-3 py-2 border ${errors.accountId ? 'border-red-500' : 'border-gray-300'} bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}>
+                    <option value="">Selecione...</option>
+                    {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+                </select>
+            </div>
+            <div>
+                <label htmlFor="categoryId" className="block text-sm font-medium text-gray-600">Categoria</label>
+                <select id="categoryId" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={`mt-1 w-full px-3 py-2 border ${errors.categoryId ? 'border-red-500' : 'border-gray-300'} bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}>
+                    <option value="">Selecione...</option>
+                    {filteredCategories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                </select>
+            </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label htmlFor="date" className="block text-sm font-medium text-gray-600">Data</label>
+                <input type="date" id="date" value={date} onChange={(e) => setDate(e.target.value)} className={`mt-1 w-full px-3 py-2 border ${errors.date ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`} />
+            </div>
+            <div>
+                <label htmlFor="value" className="block text-sm font-medium text-gray-600">Valor</label>
+                <CurrencyInput id="value" value={value} onChange={setValue} />
+                {errors.value && <p className="text-sm text-red-500 mt-1">{errors.value}</p>}
+            </div>
+        </div>
+      </div>
+    );
+
     return (
-        <form onSubmit={handleSubmit} className="space-y-3">
-            {newAttachment && (
-                <div className="relative group">
-                    <p className="text-sm font-medium text-gray-600 mb-1">Novo Recibo Digitalizado</p>
-                    <img
-                        src={`data:image/jpeg;base64,${newAttachment.data}`}
-                        alt="Recibo digitalizado"
-                        className="rounded-lg border-2 border-dashed p-1 max-h-32 w-auto mx-auto"
-                    />
-                     <button
-                        type="button"
-                        onClick={() => setNewAttachment(null)}
-                        className="absolute top-0 right-0 m-1 bg-white/50 rounded-full p-0.5 text-gray-600 hover:text-red-600 hover:bg-white transition-all opacity-0 group-hover:opacity-100"
-                        title="Remover anexo"
-                    >
-                        <XCircle size={20} />
-                    </button>
+        <form onSubmit={handleSubmit}>
+            {isScannedFlow ? (
+                // Multi-step flow for scanned receipts
+                <div className="space-y-4">
+                    {step === 1 && (
+                        <>
+                            <div className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded-r-lg">
+                                <div className="flex">
+                                    <div className="flex-shrink-0"><Info className="h-5 w-5 text-blue-500 mt-0.5" /></div>
+                                    <div className="ml-3">
+                                        <p className="text-sm font-medium text-blue-800">Recibo Digitalizado</p>
+                                        <p className="text-sm text-blue-700">Confira os dados extraídos pela IA e ajuste se necessário.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {formFields}
+                        </>
+                    )}
+                    {step === 2 && (
+                         <div className="space-y-4">
+                            <p className="text-center text-gray-600">Por favor, confirme o anexo para salvar.</p>
+                            {newAttachment && (
+                                <div className="relative group">
+                                    <p className="text-sm font-medium text-gray-600 mb-1">Recibo Digitalizado</p>
+                                    <img
+                                        src={`data:image/jpeg;base64,${newAttachment.data}`}
+                                        alt="Recibo digitalizado"
+                                        className="rounded-lg border p-1 max-h-60 w-auto mx-auto"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
+            ) : (
+                // Single-step for manual entry/edit
+                formFields
             )}
-            <div>
-                <label className="block text-sm font-medium text-gray-600 mb-2">Natureza do Lançamento</label>
-                <div className="grid grid-cols-2 gap-4">
-                    <button type="button" onClick={() => { setNature(TransactionNature.RECEITA); setCategoryId(''); }} className={`p-2 rounded-lg font-semibold transition ${nature === TransactionNature.RECEITA ? 'bg-green-500 text-white ring-2 ring-green-600 ring-offset-2' : 'bg-gray-100 hover:bg-green-100'}`}>Receita</button>
-                    <button type="button" onClick={() => { setNature(TransactionNature.DESPESA); setCategoryId(''); }} className={`p-2 rounded-lg font-semibold transition ${nature === TransactionNature.DESPESA ? 'bg-red-500 text-white ring-2 ring-red-600 ring-offset-2' : 'bg-gray-100 hover:bg-red-100'}`}>Despesa</button>
-                </div>
-            </div>
             
-            <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-600">Descrição</label>
-                <input
-                    type="text"
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ex: Compras do mês"
-                />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label htmlFor="accountId" className="block text-sm font-medium text-gray-600">Conta Bancária</label>
-                    <select id="accountId" value={accountId} onChange={(e) => setAccountId(e.target.value)} className={`mt-1 w-full px-3 py-2 border ${errors.accountId ? 'border-red-500' : 'border-gray-300'} bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}>
-                        <option value="">Selecione...</option>
-                        {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
-                    </select>
-                </div>
-                <div>
-                    <label htmlFor="categoryId" className="block text-sm font-medium text-gray-600">Categoria</label>
-                    <select id="categoryId" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={`mt-1 w-full px-3 py-2 border ${errors.categoryId ? 'border-red-500' : 'border-gray-300'} bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}>
-                        <option value="">Selecione...</option>
-                        {filteredCategories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                    </select>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label htmlFor="date" className="block text-sm font-medium text-gray-600">Data</label>
-                    <input type="date" id="date" value={date} onChange={(e) => setDate(e.target.value)} className={`mt-1 w-full px-3 py-2 border ${errors.date ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`} />
-                </div>
-                <div>
-                    <label htmlFor="value" className="block text-sm font-medium text-gray-600">Valor</label>
-                    <CurrencyInput id="value" value={value} onChange={setValue} />
-                    {errors.value && <p className="text-sm text-red-500 mt-1">{errors.value}</p>}
-                </div>
-            </div>
-            
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-100">
+                {isScannedFlow && step === 2 && (
+                    <button type="button" onClick={() => setStep(1)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">Voltar</button>
+                )}
                 <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">Cancelar</button>
-                <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow disabled:bg-blue-300">
-                    {isSubmitting ? 'Salvando...' : 'Confirmar'}
-                </button>
+                {isScannedFlow && step === 1 ? (
+                    <button type="button" onClick={handleNext} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow">
+                        Próximo <ArrowRight size={16} />
+                    </button>
+                ) : (
+                    <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow disabled:bg-blue-300">
+                        {isSubmitting ? 'Salvando...' : 'Confirmar'}
+                    </button>
+                )}
             </div>
         </form>
     );
