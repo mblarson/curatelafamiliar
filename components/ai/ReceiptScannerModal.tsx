@@ -82,7 +82,7 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
 
       // Promise for data extraction
       const dataExtractionPromise = ai.models.generateContent({
-        model: 'gemini-flash-latest',
+        model: 'gemini-3-flash-preview',
         contents: { parts: [{ text: `Analise este recibo. Extraia o valor total, a data da transação (no formato AAAA-MM-DD) e uma breve descrição ou nome do estabelecimento. Se não conseguir encontrar uma data, use a data de hoje. Se não encontrar um valor, use 0.` }, imagePart] },
         config: {
             responseMimeType: "application/json",
@@ -112,8 +112,11 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       const [dataResponse, imageResponse] = await Promise.all([dataExtractionPromise, imageProcessingPromise]);
       
       // Process data response
-      const textResponse = dataResponse.text.trim();
-      const parsedData = JSON.parse(textResponse);
+      const textResponse = dataResponse.text;
+      if (!textResponse || textResponse.trim() === '') {
+        throw new Error("A resposta da IA para extração de dados estava vazia.");
+      }
+      const parsedData = JSON.parse(textResponse.trim());
 
       if (!/^\d{4}-\d{2}-\d{2}$/.test(parsedData.date)) {
         console.warn("Invalid date format from AI, using today's date.", parsedData.date);
