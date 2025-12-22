@@ -124,21 +124,19 @@ O resultado final deve ser idêntico a um documento digitalizado por um scanner 
       handleClose();
 
     } catch (error) {
+      // Log the entire error object for detailed debugging
+      log.error("Ocorreu um erro detalhado ao digitalizar o documento", { error });
+
+      let userMessage = 'Não foi possível processar o documento. Verifique o console para detalhes técnicos.';
       if (error instanceof Error) {
-        // FIX: Removed API_KEY_MISSING case as it's no longer relevant.
-        switch(error.message) {
-          case 'API_TIMEOUT':
-            log.error("A requisição para digitalizar documento expirou (timeout de 90s).");
-            setScanError('A análise demorou muito. Tente novamente com uma imagem menor ou verifique sua conexão.');
-            break;
-          default:
-            log.error("Erro ao digitalizar documento.", { error: error.toString() });
-            setScanError('Não foi possível processar o documento. Verifique o console para mais detalhes.');
-        }
-      } else {
-        log.error("Erro desconhecido ao digitalizar documento.", { error });
-        setScanError('Ocorreu um erro inesperado. Verifique o console para mais detalhes.');
+          if (error.message === 'API_TIMEOUT') {
+              userMessage = 'A análise demorou muito (timeout). Tente novamente com uma imagem menor.';
+          } else {
+              const specificError = (error as any).cause?.toString() || error.toString();
+              userMessage = `Falha na comunicação com a IA. Detalhes: ${specificError}.`;
+          }
       }
+      setScanError(userMessage);
     } finally {
       setIsLoading(false);
     }

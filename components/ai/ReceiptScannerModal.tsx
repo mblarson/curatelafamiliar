@@ -162,18 +162,22 @@ O resultado final deve ser idêntico a um documento digitalizado por um scanner 
       handleClose();
 
     } catch (error) {
-       if (error instanceof Error) {
-        log.error("Erro ao digitalizar recibo.", { message: error.message, stack: error.stack });
-        // FIX: Removed API_KEY_MISSING check as it's no longer relevant.
+      // Log the entire error object for detailed debugging
+      log.error("Ocorreu um erro detalhado ao digitalizar o recibo", { error });
+
+      let userMessage = 'A IA não conseguiu processar a imagem. Verifique o console para detalhes técnicos e tente novamente.';
+      if (error instanceof Error) {
         if (error.message.includes('JSON')) {
-            setScanError('A IA retornou um formato inválido. Tente uma imagem mais nítida.');
+          userMessage = 'A IA retornou um formato inválido. Tente uma imagem mais nítida.';
+        } else if (error.message.toLowerCase().includes('api key')) {
+          userMessage = 'Erro de autenticação com a API. Verifique a chave de API configurada.';
         } else {
-            setScanError('A IA não conseguiu processar a imagem. Tente novamente.');
+          // Attempt to get a more specific message from the error object itself
+          const specificError = (error as any).cause?.toString() || error.toString();
+          userMessage = `Falha na comunicação com a IA. Detalhes: ${specificError}.`;
         }
-      } else {
-        log.error("Erro desconhecido ao digitalizar recibo.", { error });
-        setScanError('Ocorreu um erro inesperado. Verifique o console.');
       }
+      setScanError(userMessage);
     } finally {
       setIsLoading(false);
     }
