@@ -66,6 +66,10 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
 
     log.info('Iniciando digitalização de documento...');
     try {
+      if (!process.env.API_KEY) {
+        throw new Error('API_KEY_MISSING');
+      }
+
       const base64Image = await fileToBase64(selectedFile);
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
@@ -112,12 +116,23 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
       handleClose();
 
     } catch (error) {
-       if (error instanceof Error && error.message === 'API_TIMEOUT') {
-          log.error("A requisição para digitalizar documento expirou (timeout de 30s).");
-          setScanError('A comunicação com a IA demorou muito. Verifique sua conexão e tente novamente.');
+      if (error instanceof Error) {
+        switch(error.message) {
+          case 'API_TIMEOUT':
+            log.error("A requisição para digitalizar documento expirou (timeout de 30s).");
+            setScanError('A comunicação com a IA demorou muito. Verifique sua conexão e tente novamente.');
+            break;
+          case 'API_KEY_MISSING':
+            log.error("Chave da API não encontrada. Verifique a configuração do ambiente.");
+            setScanError('Erro de configuração: A chave da API não foi encontrada.');
+            break;
+          default:
+            log.error("Erro ao digitalizar documento.", { error: error.toString() });
+            setScanError('Não foi possível processar o documento. Verifique o console para mais detalhes.');
+        }
       } else {
-        log.error("Erro ao digitalizar documento.", { error });
-        setScanError('Não foi possível processar o documento. Verifique o console para mais detalhes.');
+        log.error("Erro desconhecido ao digitalizar documento.", { error });
+        setScanError('Ocorreu um erro inesperado. Verifique o console para mais detalhes.');
       }
     } finally {
       setIsLoading(false);

@@ -73,6 +73,10 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
 
     log.info('Iniciando digitalização do recibo...');
     try {
+      if (!process.env.API_KEY) {
+        throw new Error('API_KEY_MISSING');
+      }
+
       const base64Image = await fileToBase64(selectedFile);
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
@@ -158,12 +162,23 @@ Retorne um único objeto JSON contendo os dados extraídos e a imagem limpa em f
       handleClose();
 
     } catch (error) {
-      if (error instanceof Error && error.message === 'API_TIMEOUT') {
-          log.error("A requisição para a IA expirou (timeout de 30s).");
-          setScanError('A comunicação com a IA demorou muito. Verifique sua conexão e tente novamente.');
+      if (error instanceof Error) {
+        switch(error.message) {
+          case 'API_TIMEOUT':
+            log.error("A requisição para a IA expirou (timeout de 30s).");
+            setScanError('A comunicação com a IA demorou muito. Verifique sua conexão e tente novamente.');
+            break;
+          case 'API_KEY_MISSING':
+            log.error("Chave da API não encontrada. Verifique a configuração do ambiente.");
+            setScanError('Erro de configuração: A chave da API não foi encontrada.');
+            break;
+          default:
+            log.error("Erro ao digitalizar recibo.", { error: error.toString() });
+            setScanError('A IA não conseguiu processar a imagem. Verifique o console para mais detalhes.');
+        }
       } else {
-        log.error("Erro ao digitalizar recibo.", { error });
-        setScanError('A IA não conseguiu processar a imagem. Verifique o console para mais detalhes.');
+        log.error("Erro desconhecido ao digitalizar recibo.", { error });
+        setScanError('Ocorreu um erro inesperado. Verifique o console para mais detalhes.');
       }
     } finally {
       setIsLoading(false);
