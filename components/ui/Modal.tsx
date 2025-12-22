@@ -17,10 +17,10 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg m-4 animate-scale-in"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg m-4 animate-scale-in flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center p-5 border-b border-gray-100">
+        <div className="flex-shrink-0 flex justify-between items-center p-5 border-b border-gray-100">
           <h2 className="text-xl font-semibold text-gray-700">{title}</h2>
           <button
             onClick={onClose}
@@ -29,7 +29,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
             <X size={24} />
           </button>
         </div>
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto">
           {children}
         </div>
       </div>

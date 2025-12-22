@@ -191,7 +191,7 @@ O resultado final deve ser idêntico a um documento digitalizado por um scanner 
       <div className="space-y-4">
         {previewUrl ? (
           <div className="text-center">
-            <img src={previewUrl} alt="Pré-visualização do recibo" className="max-h-60 w-auto inline-block rounded-md border" />
+            <img src={previewUrl} alt="Pré-visualização do recibo" className="max-h-48 w-auto inline-block rounded-md border" />
           </div>
         ) : (
           <div
