@@ -109,11 +109,27 @@ const TransactionImportModal: React.FC<{
                 };
 
                 // Validate Date
+                let parsedDate: Date | null = null;
                 if (dateVal instanceof Date && !isNaN(dateVal.getTime())) {
-                    result.date = dateVal.toISOString().split('T')[0];
+                    parsedDate = dateVal;
+                } else if (typeof dateVal === 'string') {
+                    const parts = dateVal.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+                    if (parts) {
+                        const day = parseInt(parts[1], 10);
+                        const month = parseInt(parts[2], 10) - 1; // JS months are 0-indexed
+                        const year = parseInt(parts[3], 10);
+                        const date = new Date(Date.UTC(year, month, day));
+                        if (date.getUTCFullYear() === year && date.getUTCMonth() === month && date.getUTCDate() === day) {
+                            parsedDate = date;
+                        }
+                    }
+                }
+
+                if (parsedDate) {
+                    result.date = parsedDate.toISOString().split('T')[0];
                 } else {
                     result.status = 'invalid';
-                    result.message = 'Data inválida.';
+                    result.message = 'Data inválida. Use o formato DD/MM/AAAA.';
                 }
 
                 // Validate Value
@@ -129,8 +145,7 @@ const TransactionImportModal: React.FC<{
                 // Validate Category
                 const category = categoryMap.get(categoryVal.toLowerCase());
                 if (category) {
-                    // FIX: This comparison appears to be unintentional because the types 'CategoryType' and 'TransactionNature' have no overlap.
-                     if (category.type === CategoryType.DESPESA) {
+                    if (category.type === CategoryType.DESPESA) {
                         result.categoryId = category.id;
                     } else {
                         result.status = 'invalid';
