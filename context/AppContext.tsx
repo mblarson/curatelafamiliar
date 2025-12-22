@@ -12,6 +12,7 @@ interface AppContextType {
   
   categories: Category[];
   addCategory: (category: Omit<Category, 'id'>) => Promise<void>;
+  addCategoriesBatch: (categories: Omit<Category, 'id'>[]) => Promise<void>;
   updateCategory: (category: Category) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   
@@ -123,6 +124,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { error } = await supabase.from('categories').insert(newCategory);
     if (error) return console.error("Error adding category:", error);
     setCategories(prev => [...prev, newCategory]);
+  };
+  const addCategoriesBatch = async (categoriesData: Omit<Category, 'id'>[]) => {
+    const newCategories = categoriesData.map(c => ({ ...c, id: crypto.randomUUID() }));
+    const { error } = await supabase.from('categories').insert(newCategories);
+    if (error) {
+        console.error("Error adding categories in batch:", error);
+        throw error;
+    }
+    setCategories(prev => [...prev, ...newCategories].sort((a, b) => a.name.localeCompare(b.name)));
   };
   const updateCategory = async (updatedCategory: Category) => {
     const { error } = await supabase.from('categories').update(updatedCategory).eq('id', updatedCategory.id);
@@ -238,7 +248,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const contextValue = {
     isLoading,
     accounts, addAccount, updateAccount, deleteAccount, getAccountById,
-    categories, addCategory, updateCategory, deleteCategory,
+    categories, addCategory, addCategoriesBatch, updateCategory, deleteCategory,
     transactions, addTransaction, updateTransaction, deleteTransaction,
     documents, addDocument, deleteDocument,
     calculateCurrentBalance,

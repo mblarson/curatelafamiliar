@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useAppData } from '../../hooks/useAppData';
 import { Category, CategoryType } from '../../types';
 import Modal from '../ui/Modal';
-import { Plus, Edit, Trash2, List } from 'lucide-react';
+import CategoryImportModal from '../ui/CategoryImportModal';
+import { Plus, Edit, Trash2, List, Upload } from 'lucide-react';
 
 const CategoryForm: React.FC<{
   onSubmit: (category: Omit<Category, 'id'>) => Promise<void>;
@@ -76,6 +77,7 @@ const CategoryForm: React.FC<{
 const Categories: React.FC = () => {
   const { categories, addCategory, updateCategory, deleteCategory } = useAppData();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [categoryToEdit, setCategoryToEdit] = useState<Category | null>(null);
 
   const handleOpenModal = (category?: Category) => {
@@ -118,13 +120,22 @@ const Categories: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-800">Categorias</h1>
           <p className="text-gray-500 mt-1">Crie e organize suas categorias de receitas e despesas.</p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow w-full sm:w-auto"
-        >
-          <Plus size={20} />
-          Criar Categoria
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => setIsImportModalOpen(true)}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-semibold shadow-sm"
+            >
+              <Upload size={18} />
+              Importar XLS
+            </button>
+            <button
+              onClick={() => handleOpenModal()}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow"
+            >
+              <Plus size={20} />
+              Criar Categoria
+            </button>
+        </div>
       </div>
 
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm">
@@ -145,7 +156,7 @@ const Categories: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {categories.map(cat => (
+                {categories.sort((a, b) => a.name.localeCompare(b.name)).map(cat => (
                   <tr key={cat.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 transition-colors">
                     <td className="p-4 font-medium text-gray-700">{cat.name}</td>
                     <td className="p-4">
@@ -172,6 +183,11 @@ const Categories: React.FC = () => {
       <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={categoryToEdit ? 'Editar Categoria' : 'Criar Nova Categoria'}>
         <CategoryForm onSubmit={handleSubmit} onClose={handleCloseModal} categoryToEdit={categoryToEdit} />
       </Modal>
+
+      <CategoryImportModal 
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+      />
     </div>
   );
 };
