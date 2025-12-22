@@ -1,9 +1,8 @@
-
 import React, { useMemo } from 'react';
 import { useAppData } from '../../hooks/useAppData';
 import { formatCurrency } from '../../utils/formatters';
 import { CategoryType } from '../../types';
-import { ArrowUpRight, ArrowDownLeft, DollarSign, Scale, ArrowRight } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Scale, ArrowRight } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 const Reports: React.FC = () => {
@@ -20,6 +19,7 @@ const Reports: React.FC = () => {
 
     const monthTransactions = transactions.filter(t => {
       const tDate = new Date(t.date);
+      tDate.setUTCHours(0,0,0,0);
       return tDate >= firstDay && tDate <= lastDay;
     });
 
@@ -35,7 +35,6 @@ const Reports: React.FC = () => {
   }, [transactions]);
   
   const expenseByCategoryData = useMemo(() => {
-    const expenseCategories = categories.filter(c => c.type === CategoryType.DESPESA);
     const expenseData: { [key: string]: number } = {};
 
     transactions
@@ -70,9 +69,9 @@ const Reports: React.FC = () => {
                 <p className="font-medium opacity-80">Saldo Total Consolidado</p>
                 <p className="text-4xl font-bold mt-2">{formatCurrency(totalBalance)}</p>
             </div>
-            <a href="#" className="flex items-center gap-2 mt-4 font-semibold text-sm opacity-80 hover:opacity-100 transition-opacity">
-                Ver detalhes <ArrowRight size={16} />
-            </a>
+            <div className="flex items-center gap-2 mt-4 font-semibold text-sm opacity-80">
+                <span>Reflete o saldo de todas as contas.</span>
+            </div>
         </div>
         
         {/* White Cards */}

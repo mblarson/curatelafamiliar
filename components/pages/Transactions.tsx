@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useAppData } from '../../hooks/useAppData';
 import { Transaction, TransactionNature, CategoryType } from '../../types';

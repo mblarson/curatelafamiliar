@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { formatCurrencyInput, unformatCurrency } from '../../utils/formatters';
 

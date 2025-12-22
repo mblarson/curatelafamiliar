@@ -1,4 +1,3 @@
-
 import { Transaction, Category, BankAccount } from '../types';
 import { formatCurrency, formatDate } from './formatters';
 

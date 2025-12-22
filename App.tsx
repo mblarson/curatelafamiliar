@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Categories from './components/pages/Categories';
 import BankAccounts from './components/pages/BankAccounts';

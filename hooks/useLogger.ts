@@ -1,4 +1,3 @@
-
 import { useContext } from 'react';
 import { LoggerContext, LogLevel } from '../context/LoggerContext';
 

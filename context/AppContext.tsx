@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, ReactNode, useMemo } from 'react';
 import { BankAccount, Category, Transaction } from '../types';
 

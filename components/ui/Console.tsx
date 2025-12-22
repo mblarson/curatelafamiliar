@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useLogger } from '../../hooks/useLogger';
 import { LogLevel, LogEntry } from '../../context/LoggerContext';

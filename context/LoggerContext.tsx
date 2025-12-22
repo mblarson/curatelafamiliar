@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useCallback, ReactNode, useEffect } from 'react';
 
 export enum LogLevel {

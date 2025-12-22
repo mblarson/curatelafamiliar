@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAppData } from '../../hooks/useAppData';
 import { BankAccount, AccountType } from '../../types';
