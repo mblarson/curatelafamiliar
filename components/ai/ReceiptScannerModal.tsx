@@ -82,7 +82,7 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
 
       // Promise for data extraction
       const dataExtractionPromise = ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-flash-latest',
         contents: { parts: [{ text: `Analise este recibo. Extraia o valor total, a data da transação (no formato AAAA-MM-DD) e uma breve descrição ou nome do estabelecimento. Se não conseguir encontrar uma data, use a data de hoje. Se não encontrar um valor, use 0.` }, imagePart] },
         config: {
             responseMimeType: "application/json",
@@ -112,12 +112,8 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       const [dataResponse, imageResponse] = await Promise.all([dataExtractionPromise, imageProcessingPromise]);
       
       // Process data response
-      const textResponse = dataResponse.text;
-      if (!textResponse || textResponse.trim() === '') {
-        throw new Error("A resposta da IA para extração de dados estava vazia.");
-      }
-      const parsedData = JSON.parse(textResponse.trim());
-
+      const textResponse = dataResponse.text.trim();
+      const parsedData = JSON.parse(textResponse);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(parsedData.date)) {
         console.warn("Invalid date format from AI, using today's date.", parsedData.date);
         parsedData.date = new Date().toISOString().split('T')[0];
@@ -155,18 +151,18 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
           <div
             onDrop={onDrop}
             onDragOver={onDragOver}
-            className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
+            className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center cursor-pointer hover:border-sky-500 hover:bg-sky-50 transition-colors"
             onClick={() => document.getElementById('file-upload')?.click()}
           >
-            <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
-            <p className="mt-2 text-sm text-gray-600">Arraste e solte o recibo aqui, ou clique para selecionar</p>
-            <p className="text-xs text-gray-500">PNG, JPG ou WEBP</p>
+            <UploadCloud className="mx-auto h-12 w-12 text-slate-400" />
+            <p className="mt-2 text-sm text-slate-600">Arraste e solte o recibo aqui, ou clique para selecionar</p>
+            <p className="text-xs text-slate-500">PNG, JPG ou WEBP</p>
             <input id="file-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </div>
         )}
 
         {scanError && (
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded-md flex items-center gap-2">
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded-md flex items-center gap-2">
             <AlertCircle size={20} />
             <p className="text-sm">{scanError}</p>
           </div>
@@ -176,7 +172,7 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
             <button
                 type="button"
                 onClick={handleClose}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+                className="px-4 py-2 bg-slate-200 text-slate-700 rounded-md hover:bg-slate-300 transition-colors"
                 disabled={isLoading}
             >
                 Cancelar
@@ -184,7 +180,7 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
             <button
                 type="button"
                 onClick={handleScan}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow disabled:bg-blue-300 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-md hover:bg-sky-700 transition-colors font-semibold shadow disabled:bg-sky-300 disabled:cursor-not-allowed"
                 disabled={!selectedFile || isLoading}
             >
                 {isLoading ? (
