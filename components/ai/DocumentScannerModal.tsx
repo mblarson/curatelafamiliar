@@ -71,7 +71,11 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
       log.info('Imagem comprimida.');
 
-      // FIX: Initialize GoogleGenAI with API_KEY from environment variable.
+      if (!process.env.API_KEY) {
+        log.error("Chave de API (API_KEY) não encontrada nas variáveis de ambiente.");
+        throw new Error("API_KEY_MISSING");
+      }
+
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
       const imagePart = {
@@ -129,7 +133,9 @@ O resultado final deve ser idêntico a um documento digitalizado por um scanner 
 
       let userMessage = 'Não foi possível processar o documento. Verifique o console para detalhes técnicos.';
       if (error instanceof Error) {
-          if (error.message === 'API_TIMEOUT') {
+          if (error.message === "API_KEY_MISSING") {
+            userMessage = "A aplicação não está configurada corretamente. A chave de API está faltando.";
+          } else if (error.message === 'API_TIMEOUT') {
               userMessage = 'A análise demorou muito (timeout). Tente novamente com uma imagem menor.';
           } else {
               const specificError = (error as any).cause?.toString() || error.toString();

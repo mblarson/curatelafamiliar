@@ -80,7 +80,11 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
       log.info('Imagem processada. Enviando para a IA...');
 
-      // FIX: Initialize GoogleGenAI with API_KEY from environment variable.
+      if (!process.env.API_KEY) {
+        log.error("Chave de API (API_KEY) não encontrada nas variáveis de ambiente.");
+        throw new Error("API_KEY_MISSING");
+      }
+      
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
       const imagePart = {
@@ -129,7 +133,6 @@ O resultado final deve ser idêntico a um documento digitalizado por um scanner 
       log.info('Limpeza da imagem concluída. Ambas as respostas da IA foram recebidas.');
 
       // Processando os resultados
-      // FIX: Add check for dataResponse.text to prevent crash on trim().
       if (!dataResponse.text) {
         throw new Error("A IA não retornou dados de texto para extração.");
       }
@@ -167,7 +170,9 @@ O resultado final deve ser idêntico a um documento digitalizado por um scanner 
 
       let userMessage = 'A IA não conseguiu processar a imagem. Verifique o console para detalhes técnicos e tente novamente.';
       if (error instanceof Error) {
-        if (error.message.includes('JSON')) {
+        if (error.message === "API_KEY_MISSING") {
+          userMessage = "A aplicação não está configurada corretamente. A chave de API está faltando.";
+        } else if (error.message.includes('JSON')) {
           userMessage = 'A IA retornou um formato inválido. Tente uma imagem mais nítida.';
         } else if (error.message.toLowerCase().includes('api key')) {
           userMessage = 'Erro de autenticação com a API. Verifique a chave de API configurada.';
