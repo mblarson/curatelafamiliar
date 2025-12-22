@@ -52,10 +52,12 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
     event.preventDefault();
     event.stopPropagation();
     const file = event.dataTransfer.files?.[0];
-    if (file) {
+    if (file && file.type.startsWith('image/')) {
       setScanError('');
       setSelectedFile(file);
       setPreviewUrl(URL.createObjectURL(file));
+    } else {
+        setScanError('Por favor, envie um arquivo de imagem (PNG, JPG, etc).')
     }
   }, []);
 
@@ -79,108 +81,100 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
         throw new Error('API_KEY_MISSING');
       }
 
-      const base64Image = await fileToBase64(selectedFile);
+      log.info('Comprimindo e convertendo imagem para base64...');
+      const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
+      log.info('Imagem processada. Enviando para a IA...');
+
       const ai = new GoogleGenAI({ apiKey: finalApiKey });
 
       const imagePart = {
         inlineData: {
-          mimeType: selectedFile.type,
+          mimeType,
           data: base64Image,
         },
       };
 
-      const requestPayload = {
-        model: 'gemini-3-flash-preview',
-        // O resto do payload contém dados sensíveis (imagem), então o omitimos dos logs.
-      };
-      log.info('Enviando requisição para a IA...', requestPayload);
-      
-      const apiCallPromise = ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: { parts: [
-            { text: `Você é um assistente de digitalização financeira. Sua tarefa é dupla:
-1.  **Extrair Dados:** Analise a imagem do recibo e extraia o valor total, a data da transação (no formato AAAA-MM-DD) e uma breve descrição ou nome do estabelecimento. Se a data não for encontrada, use a data de hoje. Se o valor não for encontrado, use 0.
-2.  **Limpar Imagem:** Aja como um scanner profissional. Corrija a perspectiva, remova sombras, aumente o contraste e retorne uma imagem limpa do recibo com fundo branco.
+      // --- Chamadas paralelas para a IA ---
 
-Retorne um único objeto JSON contendo os dados extraídos e a imagem limpa em formato base64.` }, 
-            imagePart
-        ]},
-        config: {
+      // 1. Promessa para extrair dados
+      const extractDataPromise = () => {
+        const dataPrompt = `Analise a imagem do recibo e extraia o valor total da transação (use ponto como separador decimal), a data (no formato AAAA-MM-DD) e o nome do estabelecimento ou uma breve descrição da compra. Se a data não for encontrada, use a data de hoje. Se o valor não for encontrado, use 0.`;
+        return ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: { parts: [{ text: dataPrompt }, imagePart] },
+          config: {
             responseMimeType: "application/json",
             responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    value: { type: Type.NUMBER, description: 'Valor total da compra, use ponto como separador decimal.' },
-                    date: { type: Type.STRING, description: 'Data da transação no formato AAAA-MM-DD.' },
-                    description: { type: Type.STRING, description: 'Nome do estabelecimento ou descrição da compra.' },
-                    scannedImage: { type: Type.STRING, description: 'A imagem do recibo, limpa e codificada em base64.' }
-                },
-                required: ["value", "date", "description", "scannedImage"]
+              type: Type.OBJECT,
+              properties: {
+                value: { type: Type.NUMBER, description: 'Valor total da compra, use ponto como separador decimal.' },
+                date: { type: Type.STRING, description: 'Data da transação no formato AAAA-MM-DD.' },
+                description: { type: Type.STRING, description: 'Nome do estabelecimento ou descrição da compra.' },
+              },
+              required: ["value", "date", "description"]
             }
-        }
-      });
-
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('API_TIMEOUT')), 30000) // 30 seconds
-      );
-      
-      const response: any = await Promise.race([apiCallPromise, timeoutPromise]);
-      
-      log.info('Resposta da IA recebida.', response);
-      let parsedData;
-      const textResponse = response.text?.trim();
-
-      if (!textResponse) {
-        log.error('A resposta da IA estava vazia ou nula.', { response });
-        throw new Error("A IA retornou uma resposta vazia.");
-      }
-      log.info('Texto extraído da resposta:', { textResponse });
-      
-      try {
-        parsedData = JSON.parse(textResponse);
-      } catch (e) {
-        log.warn("Análise direta de JSON falhou, tentando extrair de markdown.", { error: e, textResponse });
-        const jsonMatch = textResponse.match(/```(?:json)?\s*([\s\S]+?)\s*```/);
-        if (jsonMatch && jsonMatch[1]) {
-          try {
-            parsedData = JSON.parse(jsonMatch[1]);
-          } catch (e2) {
-             log.error("Falha ao analisar JSON mesmo após extrair de markdown.", { error: e2, extractedText: jsonMatch[1] });
-             throw new Error("A resposta da IA não continha um JSON válido.");
           }
-        } else {
-          throw new Error("A resposta da IA não estava no formato JSON esperado.");
-        }
+        });
+      };
+
+      // 2. Promessa para limpar a imagem
+      const cleanImagePromise = () => {
+        const cleaningPrompt = 'Aja como um scanner de documentos profissional. Pegue esta imagem de um documento, alinhe-o, centralize, corrija a perspectiva, remova sombras, aumente o contraste e retorne uma imagem limpa e nítida com um fundo perfeitamente branco. O resultado deve se parecer com um documento digitalizado por uma impressora multifuncional de alta qualidade.';
+        return ai.models.generateContent({
+          model: 'gemini-2.5-flash-image',
+          contents: { parts: [{ text: cleaningPrompt }, imagePart] }
+        });
+      };
+      
+      log.info('Executando extração de dados e limpeza de imagem em paralelo...');
+      const [dataResponse, imageResponse] = await Promise.all([
+        extractDataPromise(),
+        cleanImagePromise()
+      ]);
+      log.info('Ambas as respostas da IA foram recebidas.');
+
+      // Processando os resultados
+      const extractedData = JSON.parse(dataResponse.text.trim());
+      log.info('Dados extraídos:', extractedData);
+
+      const imagePartResponse = imageResponse.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
+      let cleanedImageBase64: string;
+      if (imagePartResponse?.inlineData?.data) {
+        cleanedImageBase64 = imagePartResponse.inlineData.data;
+        log.info('Imagem limpa e processada.');
+      } else {
+        cleanedImageBase64 = base64Image;
+        log.warn('Não foi possível obter imagem limpa da IA, usando a original otimizada.');
       }
 
-
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(parsedData.date)) {
-        log.warn("Formato de data inválido da IA, usando data de hoje.", { date: parsedData.date });
-        parsedData.date = new Date().toISOString().split('T')[0];
+      // Validando e combinando os dados
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(extractedData.date)) {
+        log.warn("Formato de data inválido da IA, usando data de hoje.", { date: extractedData.date });
+        extractedData.date = new Date().toISOString().split('T')[0];
       }
       
-      log.info('Digitalização concluída com sucesso.', parsedData);
-      onScanComplete(parsedData);
+      const finalData = {
+        ...extractedData,
+        scannedImage: cleanedImageBase64,
+      };
+
+      log.info('Digitalização concluída com sucesso.', { description: finalData.description, value: finalData.value, date: finalData.date });
+      onScanComplete(finalData);
       handleClose();
 
     } catch (error) {
-      if (error instanceof Error) {
-        switch(error.message) {
-          case 'API_TIMEOUT':
-            log.error("A requisição para a IA expirou (timeout de 30s).");
-            setScanError('A comunicação com a IA demorou muito. Verifique sua conexão e tente novamente.');
-            break;
-          case 'API_KEY_MISSING':
-            log.error("Chave da API não encontrada. Verifique a configuração do ambiente.");
+       if (error instanceof Error) {
+        log.error("Erro ao digitalizar recibo.", { message: error.message, stack: error.stack });
+        if (error.message.includes('API_KEY_MISSING')) {
             setScanError('Erro de configuração: A chave da API não foi encontrada.');
-            break;
-          default:
-            log.error("Erro ao digitalizar recibo.", { error: error.toString() });
-            setScanError('A IA não conseguiu processar a imagem. Verifique o console para mais detalhes.');
+        } else if (error.message.includes('JSON')) {
+            setScanError('A IA retornou um formato inválido. Tente uma imagem mais nítida.');
+        } else {
+            setScanError('A IA não conseguiu processar a imagem. Tente novamente.');
         }
       } else {
         log.error("Erro desconhecido ao digitalizar recibo.", { error });
-        setScanError('Ocorreu um erro inesperado. Verifique o console para mais detalhes.');
+        setScanError('Ocorreu um erro inesperado. Verifique o console.');
       }
     } finally {
       setIsLoading(false);

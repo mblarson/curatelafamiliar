@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppData } from '../../hooks/useAppData';
-import { BankAccount, AccountType } from '../../types';
+import { BankAccount, AccountType, TransactionNature, CategoryType } from '../../types';
 import Modal from '../ui/Modal';
 import CurrencyInput from '../ui/CurrencyInput';
 import { formatCurrency } from '../../utils/formatters';
@@ -14,6 +14,7 @@ const BankAccountForm: React.FC<{
   const [name, setName] = useState(accountToEdit?.name || '');
   const [type, setType] = useState<AccountType>(accountToEdit?.type || AccountType.CONTA_CORRENTE);
   const [initialBalance, setInitialBalance] = useState(accountToEdit?.initialBalance || 0);
+  const [dataAbertura, setDataAbertura] = useState(accountToEdit?.dataAbertura || new Date().toISOString().split('T')[0]);
   const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -22,7 +23,11 @@ const BankAccountForm: React.FC<{
       setError('O nome da conta é obrigatório.');
       return;
     }
-    onSubmit({ name, type, initialBalance });
+    if (!dataAbertura) {
+      setError('A data de abertura é obrigatória.');
+      return;
+    }
+    onSubmit({ name, type, initialBalance, dataAbertura });
   };
 
   return (
@@ -37,7 +42,7 @@ const BankAccountForm: React.FC<{
           className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
           placeholder="Ex: Conta Principal"
         />
-        {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
+        {error && !name.trim() && <p className="text-sm text-red-600 mt-1">{error}</p>}
       </div>
        <div>
         <label htmlFor="accountType" className="block text-sm font-medium text-gray-600">Tipo de Conta</label>
@@ -51,11 +56,25 @@ const BankAccountForm: React.FC<{
           <option value={AccountType.CONTA_POUPANCA}>Conta Poupança</option>
         </select>
       </div>
-      <div>
-        <label htmlFor="initialBalance" className="block text-sm font-medium text-gray-600">Saldo Atual</label>
-        <CurrencyInput value={initialBalance} onChange={setInitialBalance} id="initialBalance"/>
-        <p className="text-xs text-gray-500 mt-1">Este será o saldo base para todos os cálculos.</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="dataAbertura" className="block text-sm font-medium text-gray-600">Data de Abertura</label>
+          <input
+            type="date"
+            id="dataAbertura"
+            value={dataAbertura}
+            onChange={(e) => setDataAbertura(e.target.value)}
+            className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {error && !dataAbertura && <p className="text-sm text-red-600 mt-1">{error}</p>}
+        </div>
+        <div>
+          <label htmlFor="initialBalance" className="block text-sm font-medium text-gray-600">Saldo Inicial</label>
+          <CurrencyInput value={initialBalance} onChange={setInitialBalance} id="initialBalance"/>
+        </div>
       </div>
+      <p className="text-xs text-gray-500 -mt-2">Este será o saldo base para todos os cálculos e será criado um lançamento inicial.</p>
+
       <div className="flex justify-end gap-3 pt-4">
         <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">Cancelar</button>
         <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow">Confirmar</button>
@@ -65,7 +84,7 @@ const BankAccountForm: React.FC<{
 };
 
 const BankAccounts: React.FC = () => {
-  const { accounts, addAccount, updateAccount, deleteAccount, calculateCurrentBalance } = useAppData();
+  const { accounts, addAccount, updateAccount, deleteAccount, calculateCurrentBalance, addTransaction, categories } = useAppData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [accountToEdit, setAccountToEdit] = useState<BankAccount | null>(null);
 
@@ -83,7 +102,27 @@ const BankAccounts: React.FC = () => {
     if (accountToEdit) {
       updateAccount({ ...accountToEdit, ...data });
     } else {
-      addAccount(data);
+      const newId = crypto.randomUUID();
+      const newAccount = { id: newId, ...data };
+      addAccount(newAccount);
+
+      if (data.initialBalance > 0) {
+          const receitaCategory = categories.find(c => c.type === CategoryType.RECEITA);
+          if (!receitaCategory) {
+              alert('Criação de conta bem-sucedida, mas o lançamento de Saldo Inicial falhou. Por favor, crie ao menos uma categoria de "Receita" para continuar.');
+              handleCloseModal();
+              return;
+          }
+          addTransaction({
+              description: 'Saldo Inicial',
+              nature: TransactionNature.RECEITA,
+              accountId: newId,
+              categoryId: receitaCategory.id,
+              date: data.dataAbertura,
+              value: data.initialBalance,
+              type: 'checking_account'
+          });
+      }
     }
     handleCloseModal();
   };

@@ -1,4 +1,4 @@
-import { Transaction, Category, BankAccount } from '../types';
+import { Transaction, BankAccount } from '../types';
 import { formatCurrency, formatDate } from './formatters';
 
 declare global {
@@ -7,54 +7,103 @@ declare global {
     }
 }
 
-export const generateTransactionsPDF = (
-    transactions: Transaction[],
-    categories: Category[],
-    accounts: BankAccount[],
-    title: string
-) => {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'landscape' });
+interface PdfOptions {
+    account: BankAccount;
+    period: { start: string; end: string };
+    transactionsInPeriod: Transaction[];
+    allTransactions: Transaction[];
+    transactionType: 'checking_account' | 'credit_card';
+    title: string;
+}
 
+const calculateBalanceUpToDate = (accountId: string, upToDate: Date, allTransactions: Transaction[]): number => {
+    const previousTransactions = allTransactions.filter(t => {
+        const tDate = new Date(t.date);
+        return t.accountId === accountId && t.type === 'checking_account' && tDate < upToDate;
+    });
+
+    const balance = previousTransactions.reduce((acc, curr) => {
+        if (curr.nature === 'RECEITA') {
+            return acc + curr.value;
+        }
+        return acc - curr.value;
+    }, 0);
+
+    return balance;
+};
+
+
+export const generateTransactionsPDF = (options: PdfOptions) => {
+    const { account, period, transactionsInPeriod, allTransactions, transactionType, title } = options;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait' });
+
+    const isCheckingAccount = transactionType === 'checking_account';
+
+    // Header
     doc.setFontSize(18);
-    doc.text(`Relatório de Lançamentos - ${title}`, 14, 22);
+    doc.text(isCheckingAccount ? 'Extrato de Conta Corrente' : title, 14, 22);
     doc.setFontSize(11);
     doc.setTextColor(100);
-    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, 14, 29);
+    doc.text(`Conta: ${account.name}`, 14, 29);
+    doc.text(`Período: ${formatDate(period.start)} a ${formatDate(period.end)}`, 14, 36);
 
-    const tableColumn = ["Data", "Descrição", "Conta", "Natureza", "Valor"];
+    let startY = 50;
+    let previousBalance = 0;
+
+    if (isCheckingAccount) {
+        const startOfDay = new Date(period.start);
+        startOfDay.setUTCHours(0, 0, 0, 0);
+        previousBalance = calculateBalanceUpToDate(account.id, startOfDay, allTransactions);
+
+        const yesterday = new Date(period.start);
+        yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'bold');
+        doc.text(`Saldo em ${formatDate(yesterday.toISOString())}: ${formatCurrency(previousBalance)}`, 14, 46);
+        doc.setFont(undefined, 'normal');
+    } else {
+        startY = 42;
+    }
+
+    const tableColumn = isCheckingAccount
+        ? ["Data", "Descrição", "Entrada (+)", "Saída (-)", "Saldo"]
+        : ["Data", "Descrição", "Entrada (+)", "Saída (-)"];
+
     const tableRows: (string | number)[][] = [];
+    let runningBalance = previousBalance;
+    let totalEntradas = 0;
+    let totalSaidas = 0;
 
-    const getCategoryName = (id: string) => categories.find(c => c.id === id)?.name || 'N/A';
-    const getAccountName = (id: string) => accounts.find(a => a.id === id)?.name || 'N/A';
+    const sortedTransactions = [...transactionsInPeriod].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    transactions.forEach(t => {
-        const transactionData = [
+    sortedTransactions.forEach(t => {
+        const entrada = t.nature === 'RECEITA' ? t.value : 0;
+        const saida = t.nature === 'DESPESA' ? t.value : 0;
+        
+        runningBalance += entrada - saida;
+        totalEntradas += entrada;
+        totalSaidas += saida;
+
+        const transactionData: (string|number)[] = [
             formatDate(t.date),
-            t.description || getCategoryName(t.categoryId),
-            getAccountName(t.accountId),
-            t.nature,
-            formatCurrency(t.value)
+            t.description,
+            entrada > 0 ? formatCurrency(entrada) : '-',
+            saida > 0 ? formatCurrency(saida) : '-',
         ];
+        if (isCheckingAccount) {
+            transactionData.push(formatCurrency(runningBalance));
+        }
         tableRows.push(transactionData);
     });
-
-    let totalReceitas = 0;
-    let totalDespesas = 0;
-    transactions.forEach(t => {
-        if (t.nature === 'RECEITA') totalReceitas += t.value;
-        else totalDespesas += t.value;
-    });
-    const saldo = totalReceitas - totalDespesas;
 
     doc.autoTable({
         head: [tableColumn],
         body: tableRows,
-        startY: 35,
+        startY: startY,
         theme: 'grid',
-        headStyles: { fillColor: [22, 163, 74] },
+        headStyles: { fillColor: [37, 99, 235] }, // Blue
         didDrawPage: (data: any) => {
-            // Footer
             const pageCount = doc.internal.getNumberOfPages();
             doc.setFontSize(10);
             doc.text(`Página ${data.pageNumber} de ${pageCount}`, data.settings.margin.left, doc.internal.pageSize.height - 10);
@@ -65,12 +114,32 @@ export const generateTransactionsPDF = (
     doc.setFontSize(12);
     doc.text('Resumo do Período', 14, finalY);
     doc.setFontSize(10);
-    doc.text(`Total de Receitas: ${formatCurrency(totalReceitas)}`, 14, finalY + 7);
-    doc.text(`Total de Despesas: ${formatCurrency(totalDespesas)}`, 14, finalY + 14);
+    
+    let summaryY = finalY + 7;
+    if (isCheckingAccount) {
+        doc.text(`Saldo Anterior: ${formatCurrency(previousBalance)}`, 14, summaryY);
+        summaryY += 7;
+    }
+
+    doc.text(`Total de Entradas: ${formatCurrency(totalEntradas)}`, 14, summaryY);
+    summaryY += 7;
+    doc.text(`Total de Saídas: ${formatCurrency(totalSaidas)}`, 14, summaryY);
+    summaryY += 7;
+    
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
-    doc.text(`Saldo do Período: ${formatCurrency(saldo)}`, 14, finalY + 21);
+    
+    if (isCheckingAccount) {
+        const finalBalance = previousBalance + totalEntradas - totalSaidas;
+        doc.text(`Saldo Final: ${formatCurrency(finalBalance)}`, 14, summaryY);
+    } else {
+        const totalFatura = totalSaidas - totalEntradas; // Total expenses minus payments/credits
+        doc.text(`Total da Fatura: ${formatCurrency(totalFatura)}`, 14, summaryY);
+    }
 
+    const fileName = isCheckingAccount 
+      ? `extrato_${account.name.toLowerCase().replace(/\s/g, '_')}.pdf`
+      : `fatura_${account.name.toLowerCase().replace(/\s/g, '_')}.pdf`;
 
-    doc.save(`relatorio_${title.toLowerCase().replace(' ', '_')}_${new Date().toISOString().slice(0,10)}.pdf`);
+    doc.save(fileName);
 };

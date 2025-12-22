@@ -1,7 +1,5 @@
 {
   "name": "Curatela Contas",
   "description": "A modern, reliable system to help families manage expenses and financial reporting for individuals under legal guardianship, ensuring clarity, responsibility, and peace of mind.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "requestFramePermissions": []
 }

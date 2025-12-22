@@ -3,7 +3,7 @@ import { BankAccount, Category, Transaction } from '../types';
 
 interface AppContextType {
   accounts: BankAccount[];
-  addAccount: (account: Omit<BankAccount, 'id'>) => void;
+  addAccount: (account: BankAccount) => void;
   updateAccount: (account: BankAccount) => void;
   deleteAccount: (id: string) => void;
   getAccountById: (id: string) => BankAccount | undefined;
@@ -19,10 +19,10 @@ interface AppContextType {
   deleteTransaction: (id: string) => void;
   
   calculateCurrentBalance: (accountId: string) => number;
-  
+
+  // FIX: Add apiKey and setApiKey to the context type to manage API key state.
   apiKey: string | null;
   setApiKey: (key: string | null) => void;
-  isAiAvailable: boolean;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -53,13 +53,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [accounts, setAccounts] = usePersistentState<BankAccount[]>('accounts', []);
   const [categories, setCategories] = usePersistentState<Category[]>('categories', []);
   const [transactions, setTransactions] = usePersistentState<Transaction[]>('transactions', []);
-  const [apiKey, setApiKey] = usePersistentState<string | null>('user_api_key', null);
-
-  const isAiAvailable = useMemo(() => !!(process.env.API_KEY || apiKey), [apiKey]);
+  // FIX: Add state management for the API key using the persistent state hook.
+  const [apiKey, setApiKey] = usePersistentState<string | null>('apiKey', null);
 
   // Accounts CRUD
-  const addAccount = (account: Omit<BankAccount, 'id'>) => {
-    setAccounts(prev => [...prev, { ...account, id: crypto.randomUUID() }]);
+  const addAccount = (account: BankAccount) => {
+    setAccounts(prev => [...prev, account]);
   };
   const updateAccount = (updatedAccount: BankAccount) => {
     setAccounts(prev => prev.map(acc => acc.id === updatedAccount.id ? updatedAccount : acc));
@@ -99,12 +98,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       
       const accountTransactions = transactions.filter(t => t.accountId === accountId && t.type === 'checking_account');
       
+      // FIX: Changed initial reduce value from account.initialBalance to 0.
+      // The initial balance is now handled by the "Saldo Inicial" transaction.
       const balance = accountTransactions.reduce((acc, curr) => {
           if (curr.nature === 'RECEITA') {
               return acc + curr.value;
           }
           return acc - curr.value;
-      }, account.initialBalance);
+      }, 0);
 
       return balance;
   }, [accounts, transactions]);
@@ -115,7 +116,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     categories, addCategory, updateCategory, deleteCategory,
     transactions, addTransaction, updateTransaction, deleteTransaction,
     calculateCurrentBalance,
-    apiKey, setApiKey, isAiAvailable,
+    // FIX: Provide apiKey state and setter to the context.
+    apiKey,
+    setApiKey,
   };
 
   return (

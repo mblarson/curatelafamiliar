@@ -72,12 +72,15 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
         throw new Error('API_KEY_MISSING');
       }
 
-      const base64Image = await fileToBase64(selectedFile);
+      log.info('Comprimindo imagem...');
+      const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
+      log.info('Imagem comprimida.');
+
       const ai = new GoogleGenAI({ apiKey: finalApiKey });
 
       const imagePart = {
         inlineData: {
-          mimeType: selectedFile.type,
+          mimeType,
           data: base64Image,
         },
       };
@@ -98,7 +101,7 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
       });
       
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('API_TIMEOUT')), 30000) // 30 seconds
+        setTimeout(() => reject(new Error('API_TIMEOUT')), 90000) // 90 seconds
       );
 
       const response: any = await Promise.race([apiCallPromise, timeoutPromise]);
@@ -109,7 +112,7 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
       if (imagePartResponse && imagePartResponse.inlineData) {
           scannedImage = imagePartResponse.inlineData.data;
       } else {
-          log.warn("Não foi possível obter uma imagem digitalizada, usando a original.", { response });
+          log.warn("Não foi possível obter uma imagem digitalizada, usando a original (já comprimida).", { response });
           scannedImage = base64Image;
       }
 
@@ -121,8 +124,8 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
       if (error instanceof Error) {
         switch(error.message) {
           case 'API_TIMEOUT':
-            log.error("A requisição para digitalizar documento expirou (timeout de 30s).");
-            setScanError('A comunicação com a IA demorou muito. Verifique sua conexão e tente novamente.');
+            log.error("A requisição para digitalizar documento expirou (timeout de 90s).");
+            setScanError('A análise demorou muito. Tente novamente com uma imagem menor ou verifique sua conexão.');
             break;
           case 'API_KEY_MISSING':
             log.error("Chave da API não encontrada. Verifique a configuração do ambiente.");
@@ -158,6 +161,7 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
             <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
             <p className="mt-2 text-sm text-gray-600">Arraste e solte o documento aqui, ou clique para selecionar</p>
             <p className="text-xs text-gray-500">PNG, JPG ou WEBP</p>
+            <p className="text-xs text-gray-400 mt-2">Imagens grandes serão otimizadas para acelerar o processo.</p>
             <input id="doc-file-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </div>
         )}

@@ -19,11 +19,19 @@ export interface BankAccount {
   name: string;
   type: AccountType;
   initialBalance: number;
+  dataAbertura: string; // ISO format
 }
 
 export enum TransactionNature {
   RECEITA = 'RECEITA',
   DESPESA = 'DESPESA',
+}
+
+export interface Attachment {
+  id: string;
+  name: string;
+  type: 'image_base64_jpeg';
+  data: string; // Base64 encoded string
 }
 
 export interface Transaction {
@@ -35,5 +43,5 @@ export interface Transaction {
   date: string; // ISO format
   value: number;
   type: 'checking_account' | 'credit_card';
-  scannedReceiptImage?: string; // Base64 encoded image
+  attachments?: Attachment[];
 }

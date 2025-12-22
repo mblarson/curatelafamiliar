@@ -1,22 +1,28 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAppData } from '../../hooks/useAppData';
-import { Transaction, TransactionNature, CategoryType } from '../../types';
+import { Transaction, TransactionNature, CategoryType, Attachment } from '../../types';
 import Modal from '../ui/Modal';
+import PdfOptionsModal from '../ui/PdfOptionsModal';
+import ReceiptScannerModal from '../ai/ReceiptScannerModal';
+import ViewAttachmentModal from '../ui/ViewAttachmentModal';
 import CurrencyInput from '../ui/CurrencyInput';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { generateTransactionsPDF } from '../../utils/pdfGenerator';
-import ReceiptScannerModal from '../ai/ReceiptScannerModal';
-import DocumentScannerModal from '../ai/DocumentScannerModal';
-import { Plus, Edit, Trash2, Download, Filter, Camera, FileText, Wallet, Paperclip, XCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Download, Filter, Wallet, ScanLine, Paperclip, XCircle } from 'lucide-react';
 
+interface ScannedData {
+  value: number;
+  date: string;
+  description: string;
+  scannedImage: string;
+}
 
 const TransactionForm: React.FC<{
   onSubmit: (transaction: Omit<Transaction, 'id'>) => void;
   onClose: () => void;
   transactionToEdit?: Partial<Transaction> | null;
   transactionType: 'checking_account' | 'credit_card';
-  isAiAvailable: boolean;
-}> = ({ onSubmit, onClose, transactionToEdit, transactionType, isAiAvailable }) => {
+}> = ({ onSubmit, onClose, transactionToEdit, transactionType }) => {
     const { accounts, categories } = useAppData();
     const [nature, setNature] = useState<TransactionNature>(transactionToEdit?.nature || TransactionNature.DESPESA);
     const [description, setDescription] = useState(transactionToEdit?.description || '');
@@ -24,10 +30,20 @@ const TransactionForm: React.FC<{
     const [categoryId, setCategoryId] = useState(transactionToEdit?.categoryId || '');
     const [date, setDate] = useState(transactionToEdit?.date ? transactionToEdit.date.split('T')[0] : new Date().toISOString().split('T')[0]);
     const [value, setValue] = useState(transactionToEdit?.value || 0);
+    const [attachments, setAttachments] = useState<Attachment[]>(transactionToEdit?.attachments || []);
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
-    const [scannedReceiptImage, setScannedReceiptImage] = useState(transactionToEdit?.scannedReceiptImage || '');
-    const [isDocScannerOpen, setIsDocScannerOpen] = useState(false);
 
+    useEffect(() => {
+        if (transactionToEdit) {
+            setNature(transactionToEdit.nature || TransactionNature.DESPESA);
+            setDescription(transactionToEdit.description || '');
+            setAccountId(transactionToEdit.accountId || '');
+            setCategoryId(transactionToEdit.categoryId || '');
+            setDate(transactionToEdit.date ? transactionToEdit.date.split('T')[0] : new Date().toISOString().split('T')[0]);
+            setValue(transactionToEdit.value || 0);
+            setAttachments(transactionToEdit.attachments || []);
+        }
+    }, [transactionToEdit]);
 
     const filteredCategories = useMemo(() => {
         return categories.filter(c => c.type === (nature as unknown as CategoryType));
@@ -46,130 +62,94 @@ const TransactionForm: React.FC<{
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!validate()) return;
-        onSubmit({ description, nature, accountId, categoryId, date, value, type: transactionType, scannedReceiptImage });
-    };
-
-    const handleDocScanComplete = (imageBase64: string) => {
-        setScannedReceiptImage(imageBase64);
-        setIsDocScannerOpen(false);
+        onSubmit({ description, nature, accountId, categoryId, date, value, type: transactionType, attachments });
     };
 
     return (
-        <>
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-2">Natureza do Lançamento</label>
-                    <div className="grid grid-cols-2 gap-4">
-                        <button type="button" onClick={() => { setNature(TransactionNature.RECEITA); setCategoryId(''); }} className={`p-3 rounded-lg font-semibold transition ${nature === TransactionNature.RECEITA ? 'bg-green-500 text-white ring-2 ring-green-600 ring-offset-2' : 'bg-gray-100 hover:bg-green-100'}`}>Receita</button>
-                        <button type="button" onClick={() => { setNature(TransactionNature.DESPESA); setCategoryId(''); }} className={`p-3 rounded-lg font-semibold transition ${nature === TransactionNature.DESPESA ? 'bg-red-500 text-white ring-2 ring-red-600 ring-offset-2' : 'bg-gray-100 hover:bg-red-100'}`}>Despesa</button>
-                    </div>
-                </div>
-                
-                <div>
-                    <label htmlFor="description" className="block text-sm font-medium text-gray-600">Descrição</label>
-                    <input
-                        type="text"
-                        id="description"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Ex: Compras do mês"
+        <form onSubmit={handleSubmit} className="space-y-4">
+            {attachments.length > 0 && (
+                <div className="relative group">
+                    <p className="text-sm font-medium text-gray-600 mb-2">Recibo Digitalizado</p>
+                    <img
+                        src={`data:image/jpeg;base64,${attachments[0].data}`}
+                        alt="Recibo digitalizado"
+                        className="rounded-lg border-2 border-dashed p-1 max-h-40 w-auto mx-auto"
                     />
+                     <button
+                        type="button"
+                        onClick={() => setAttachments([])}
+                        className="absolute top-0 right-0 m-1 bg-white/50 rounded-full p-0.5 text-gray-600 hover:text-red-600 hover:bg-white transition-all opacity-0 group-hover:opacity-100"
+                        title="Remover anexo"
+                    >
+                        <XCircle size={20} />
+                    </button>
                 </div>
+            )}
+            <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">Natureza do Lançamento</label>
+                <div className="grid grid-cols-2 gap-4">
+                    <button type="button" onClick={() => { setNature(TransactionNature.RECEITA); setCategoryId(''); }} className={`p-3 rounded-lg font-semibold transition ${nature === TransactionNature.RECEITA ? 'bg-green-500 text-white ring-2 ring-green-600 ring-offset-2' : 'bg-gray-100 hover:bg-green-100'}`}>Receita</button>
+                    <button type="button" onClick={() => { setNature(TransactionNature.DESPESA); setCategoryId(''); }} className={`p-3 rounded-lg font-semibold transition ${nature === TransactionNature.DESPESA ? 'bg-red-500 text-white ring-2 ring-red-600 ring-offset-2' : 'bg-gray-100 hover:bg-red-100'}`}>Despesa</button>
+                </div>
+            </div>
+            
+            <div>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-600">Descrição</label>
+                <input
+                    type="text"
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ex: Compras do mês"
+                />
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="accountId" className="block text-sm font-medium text-gray-600">Conta Bancária</label>
-                        <select id="accountId" value={accountId} onChange={(e) => setAccountId(e.target.value)} className={`mt-1 w-full px-3 py-2 border ${errors.accountId ? 'border-red-500' : 'border-gray-300'} bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}>
-                            <option value="">Selecione...</option>
-                            {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label htmlFor="categoryId" className="block text-sm font-medium text-gray-600">Categoria</label>
-                        <select id="categoryId" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={`mt-1 w-full px-3 py-2 border ${errors.categoryId ? 'border-red-500' : 'border-gray-300'} bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}>
-                            <option value="">Selecione...</option>
-                            {filteredCategories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                        </select>
-                    </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label htmlFor="accountId" className="block text-sm font-medium text-gray-600">Conta Bancária</label>
+                    <select id="accountId" value={accountId} onChange={(e) => setAccountId(e.target.value)} className={`mt-1 w-full px-3 py-2 border ${errors.accountId ? 'border-red-500' : 'border-gray-300'} bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}>
+                        <option value="">Selecione...</option>
+                        {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+                    </select>
                 </div>
+                <div>
+                    <label htmlFor="categoryId" className="block text-sm font-medium text-gray-600">Categoria</label>
+                    <select id="categoryId" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={`mt-1 w-full px-3 py-2 border ${errors.categoryId ? 'border-red-500' : 'border-gray-300'} bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}>
+                        <option value="">Selecione...</option>
+                        {filteredCategories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                    </select>
+                </div>
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="date" className="block text-sm font-medium text-gray-600">Data</label>
-                        <input type="date" id="date" value={date} onChange={(e) => setDate(e.target.value)} className={`mt-1 w-full px-3 py-2 border ${errors.date ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`} />
-                    </div>
-                    <div>
-                        <label htmlFor="value" className="block text-sm font-medium text-gray-600">Valor</label>
-                        <CurrencyInput id="value" value={value} onChange={setValue} />
-                        {errors.value && <p className="text-sm text-red-500 mt-1">{errors.value}</p>}
-                    </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label htmlFor="date" className="block text-sm font-medium text-gray-600">Data</label>
+                    <input type="date" id="date" value={date} onChange={(e) => setDate(e.target.value)} className={`mt-1 w-full px-3 py-2 border ${errors.date ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`} />
                 </div>
-                
-                <div className="pt-4">
-                    <label className="block text-sm font-medium text-gray-600">Anexo do Recibo</label>
-                    {scannedReceiptImage ? (
-                        <div className="mt-2 group relative">
-                            <img 
-                                src={`data:image/png;base64,${scannedReceiptImage}`} 
-                                alt="Anexo digitalizado"
-                                className="w-full h-auto max-h-48 object-contain rounded-lg border bg-gray-50 p-1"
-                            />
-                             <button
-                                type="button"
-                                onClick={() => setIsDocScannerOpen(true)}
-                                className="absolute bottom-2 right-2 bg-white/80 backdrop-blur-sm text-blue-600 rounded-full p-1.5 shadow-md hover:scale-110 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
-                                aria-label="Substituir anexo"
-                                disabled={!isAiAvailable}
-                                title={!isAiAvailable ? "Funcionalidade indisponível: configure a chave da API." : "Digitalizar novo anexo com IA"}
-                            >
-                                <Edit size={18} />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setScannedReceiptImage('')}
-                                className="absolute top-2 right-2 bg-white/80 backdrop-blur-sm text-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
-                                aria-label="Remover anexo"
-                            >
-                                <XCircle size={24} />
-                            </button>
-                        </div>
-                    ) : (
-                        <button
-                            type="button"
-                            onClick={() => setIsDocScannerOpen(true)}
-                            className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-3 bg-white text-blue-600 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors font-semibold disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"
-                            disabled={!isAiAvailable}
-                            title={!isAiAvailable ? "Funcionalidade indisponível: configure a chave da API." : "Digitalizar anexo com IA"}
-                        >
-                            <Paperclip size={18} />
-                            {isAiAvailable ? 'Digitalizar e Anexar Recibo' : 'Digitalização indisponível'}
-                        </button>
-                    )}
+                <div>
+                    <label htmlFor="value" className="block text-sm font-medium text-gray-600">Valor</label>
+                    <CurrencyInput id="value" value={value} onChange={setValue} />
+                    {errors.value && <p className="text-sm text-red-500 mt-1">{errors.value}</p>}
                 </div>
-
-                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
-                    <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">Cancelar</button>
-                    <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow">Confirmar</button>
-                </div>
-            </form>
-
-            <DocumentScannerModal 
-                isOpen={isDocScannerOpen}
-                onClose={() => setIsDocScannerOpen(false)}
-                onScanComplete={handleDocScanComplete}
-            />
-        </>
+            </div>
+            
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
+                <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">Cancelar</button>
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow">Confirmar</button>
+            </div>
+        </form>
     );
 };
 
 
 const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_card', title: string }> = ({ transactionType, title }) => {
-    const { transactions, categories, accounts, addTransaction, updateTransaction, deleteTransaction, isAiAvailable } = useAppData();
+    const { transactions, categories, accounts, addTransaction, updateTransaction, deleteTransaction, getAccountById, apiKey } = useAppData();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [transactionToEdit, setTransactionToEdit] = useState<Partial<Transaction> | null>(null);
-    const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
+    const [viewingAttachment, setViewingAttachment] = useState<Attachment | null>(null);
 
     const [filterDate, setFilterDate] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
@@ -193,16 +173,6 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
         setTransactionToEdit(null);
     };
 
-    const handleScanComplete = (scannedData: { value: number, date: string, description: string, scannedImage: string }) => {
-        setTransactionToEdit({
-            ...scannedData,
-            scannedReceiptImage: scannedData.scannedImage,
-            nature: TransactionNature.DESPESA // Default to expense after scanning
-        });
-        setIsScannerOpen(false);
-        setIsModalOpen(true);
-    };
-
     const handleSubmit = (data: Omit<Transaction, 'id'>) => {
         if (transactionToEdit && 'id' in transactionToEdit) {
             updateTransaction({ ...transactionToEdit, ...data } as Transaction);
@@ -218,6 +188,53 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
         }
     };
     
+    const handleGeneratePdf = ({ accountId, startDate, endDate }: { accountId: string, startDate: string, endDate: string }) => {
+        const account = getAccountById(accountId);
+        if (!account) return;
+
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        start.setUTCHours(0,0,0,0);
+        end.setUTCHours(23,59,59,999);
+
+        const transactionsInPeriod = transactions.filter(t => {
+            const tDate = new Date(t.date);
+            return t.accountId === accountId && tDate >= start && tDate <= end && t.type === transactionType;
+        });
+
+        generateTransactionsPDF({
+            account,
+            period: { start: startDate, end: endDate },
+            transactionsInPeriod,
+            allTransactions: transactions,
+            transactionType,
+            title
+        });
+        setIsPdfModalOpen(false);
+    };
+
+    const handleScanComplete = (data: ScannedData) => {
+      const newAttachment: Attachment = {
+        id: crypto.randomUUID(),
+        name: `Recibo_${data.date}.jpg`,
+        type: 'image_base64_jpeg',
+        data: data.scannedImage,
+      };
+
+      const despesaCategory = categories.find(c => c.type === CategoryType.DESPESA);
+      
+      setTransactionToEdit({
+        description: data.description,
+        value: data.value,
+        date: data.date,
+        nature: TransactionNature.DESPESA,
+        categoryId: despesaCategory?.id || '', // Default to first expense category
+        attachments: [newAttachment]
+      });
+      setIsScannerOpen(false);
+      setIsModalOpen(true);
+    };
+
     const getCategoryName = (id: string) => categories.find(c => c.id === id)?.name || 'N/A';
     const getAccountName = (id: string) => accounts.find(a => a.id === id)?.name || 'N/A';
 
@@ -229,19 +246,16 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
                     <p className="text-gray-500 mt-1">Registre e gerencie suas movimentações financeiras.</p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    <button onClick={() => generateTransactionsPDF(filteredTransactions, categories, accounts, title)} className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-semibold shadow-sm">
+                    <button onClick={() => setIsPdfModalOpen(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-semibold shadow-sm">
                         <Download size={18} />
                         Gerar PDF
                     </button>
-                    <button 
-                        onClick={() => setIsScannerOpen(true)} 
-                        className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-semibold shadow-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-300 disabled:cursor-not-allowed"
-                        disabled={!isAiAvailable}
-                        title={!isAiAvailable ? "Funcionalidade indisponível: configure a chave da API." : "Digitalizar e preencher com IA"}
-                    >
-                        <Camera size={18} />
-                        Digitalizar e Preencher
-                    </button>
+                    { (process.env.API_KEY || apiKey) && 
+                        <button onClick={() => setIsScannerOpen(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold shadow">
+                            <ScanLine size={20} />
+                            Digitalizar com IA
+                        </button>
+                    }
                     <button onClick={() => handleOpenModal()} className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow">
                         <Plus size={20} />
                         Lançamento
@@ -280,8 +294,6 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
                         <table className="w-full text-left">
                             <thead className="border-b-2 border-gray-100">
                                 <tr>
-                                    <th className="p-4 text-sm font-semibold text-gray-500 uppercase tracking-wider w-1/12"></th>
-                                    <th className="p-4 text-sm font-semibold text-gray-500 uppercase tracking-wider">Data</th>
                                     <th className="p-4 text-sm font-semibold text-gray-500 uppercase tracking-wider">Descrição</th>
                                     <th className="p-4 text-sm font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Conta</th>
                                     <th className="p-4 text-sm font-semibold text-gray-500 uppercase tracking-wider text-right">Valor</th>
@@ -291,17 +303,16 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
                             <tbody>
                                 {filteredTransactions.map(t => (
                                     <tr key={t.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 transition-colors">
-                                        <td className="p-4 text-center">
-                                            {t.scannedReceiptImage && (
-                                                <button onClick={() => setViewingReceipt(t.scannedReceiptImage || null)} className="text-gray-400 hover:text-blue-600 transition-colors">
-                                                    <FileText size={18} />
-                                                </button>
-                                            )}
-                                        </td>
-                                        <td className="p-4 text-gray-600">{formatDate(t.date)}</td>
                                         <td className="p-4">
-                                            <div className="font-medium text-gray-800">{t.description || getCategoryName(t.categoryId)}</div>
-                                            {t.description && <div className="text-xs text-gray-500">{getCategoryName(t.categoryId)}</div>}
+                                            <div className="font-medium text-gray-800 flex items-center gap-2">
+                                              {t.attachments && t.attachments.length > 0 && 
+                                                <button onClick={() => setViewingAttachment(t.attachments![0])} title="Ver anexo">
+                                                  <Paperclip className="w-4 h-4 text-blue-500 hover:text-blue-700" />
+                                                </button>
+                                              }
+                                              <span>{t.description || getCategoryName(t.categoryId)}</span>
+                                            </div>
+                                            <div className="text-xs text-gray-500 ml-6">{formatDate(t.date)} - {getCategoryName(t.categoryId)}</div>
                                         </td>
                                         <td className="p-4 text-gray-600 hidden md:table-cell">{getAccountName(t.accountId)}</td>
                                         <td className={`p-4 font-semibold text-right ${t.nature === 'RECEITA' ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(t.value)}</td>
@@ -319,23 +330,29 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
                 )}
             </div>
             
+            <PdfOptionsModal
+                isOpen={isPdfModalOpen}
+                onClose={() => setIsPdfModalOpen(false)}
+                onSubmit={handleGeneratePdf}
+            />
+            
+            <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={transactionToEdit && 'id' in transactionToEdit ? 'Editar Lançamento' : 'Novo Lançamento'}>
+                <TransactionForm onSubmit={handleSubmit} onClose={handleCloseModal} transactionToEdit={transactionToEdit} transactionType={transactionType} />
+            </Modal>
+
             <ReceiptScannerModal
                 isOpen={isScannerOpen}
                 onClose={() => setIsScannerOpen(false)}
                 onScanComplete={handleScanComplete}
             />
-
-            {viewingReceipt && (
-                <Modal isOpen={!!viewingReceipt} onClose={() => setViewingReceipt(null)} title="Recibo Digitalizado">
-                    <div className="p-4 bg-gray-100 rounded-md">
-                        <img src={`data:image/png;base64,${viewingReceipt}`} alt="Recibo digitalizado" className="w-full h-auto rounded-md" />
-                    </div>
-                </Modal>
+            
+            {viewingAttachment && (
+              <ViewAttachmentModal
+                  isOpen={!!viewingAttachment}
+                  onClose={() => setViewingAttachment(null)}
+                  attachment={viewingAttachment}
+              />
             )}
-
-            <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={transactionToEdit && 'id' in transactionToEdit ? 'Editar Lançamento' : 'Novo Lançamento'}>
-                <TransactionForm onSubmit={handleSubmit} onClose={handleCloseModal} transactionToEdit={transactionToEdit} transactionType={transactionType} isAiAvailable={isAiAvailable} />
-            </Modal>
         </div>
     );
 };

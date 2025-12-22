@@ -12,7 +12,7 @@ type Page = 'Dashboard' | 'Conta Bancária' | 'Categorias' | 'Conta Corrente' | 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('Dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const renderPage = () => {
     switch (activePage) {
@@ -80,23 +80,17 @@ const App: React.FC = () => {
           </ul>
         </nav>
         
-        <div className="mt-auto pt-4 border-t border-gray-100">
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              setIsSettingsModalOpen(true);
-              setIsSidebarOpen(false);
-            }}
-            className="flex items-center gap-3 p-3 rounded-lg transition-colors font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+        <div>
+           <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="flex w-full items-center gap-3 p-3 rounded-lg transition-colors font-medium text-gray-600 hover:bg-blue-50 hover:text-blue-600"
           >
             <Settings className="w-5 h-5" />
             <span>Configurações</span>
-          </a>
-        </div>
-
-        <div className="text-center text-xs text-gray-400 mt-4">
-          <p>Feito com cuidado para você.</p>
+          </button>
+          <div className="text-center text-xs text-gray-400 mt-4">
+            <p>Feito com cuidado para você.</p>
+          </div>
         </div>
       </aside>
 
@@ -126,9 +120,8 @@ const App: React.FC = () => {
         ></div>
       )}
       
-      <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} />
-      
-      {/* Robust Console for Debugging */}
+      {/* Modals */}
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       <Console />
     </div>
   );
