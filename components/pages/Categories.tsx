@@ -5,21 +5,24 @@ import Modal from '../ui/Modal';
 import { Plus, Edit, Trash2, List } from 'lucide-react';
 
 const CategoryForm: React.FC<{
-  onSubmit: (category: Omit<Category, 'id'>) => void;
+  onSubmit: (category: Omit<Category, 'id'>) => Promise<void>;
   onClose: () => void;
   categoryToEdit?: Category | null;
 }> = ({ onSubmit, onClose, categoryToEdit }) => {
   const [type, setType] = useState<CategoryType>(categoryToEdit?.type || CategoryType.DESPESA);
   const [name, setName] = useState(categoryToEdit?.name || '');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       setError('O nome da categoria é obrigatório.');
       return;
     }
-    onSubmit({ name, type });
+    setIsSubmitting(true);
+    await onSubmit({ name, type });
+    setIsSubmitting(false);
   };
 
   return (
@@ -61,7 +64,9 @@ const CategoryForm: React.FC<{
       </div>
       <div className="flex justify-end gap-3 pt-4">
         <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">Cancelar</button>
-        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow">Confirmar</button>
+        <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow disabled:bg-blue-300">
+          {isSubmitting ? 'Salvando...' : 'Confirmar'}
+        </button>
       </div>
     </form>
   );
@@ -83,18 +88,26 @@ const Categories: React.FC = () => {
     setCategoryToEdit(null);
   };
 
-  const handleSubmit = (data: Omit<Category, 'id'>) => {
+  const handleSubmit = async (data: Omit<Category, 'id'>) => {
     if (categoryToEdit) {
-      updateCategory({ ...categoryToEdit, ...data });
+      await updateCategory({ ...categoryToEdit, ...data });
     } else {
-      addCategory(data);
+      await addCategory(data);
     }
     handleCloseModal();
   };
   
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if(window.confirm('Tem certeza que deseja remover esta categoria? Esta ação não pode ser desfeita.')) {
-      deleteCategory(id);
+      try {
+        await deleteCategory(id);
+      } catch (error: any) {
+        if (error.code === '23503') { // PostgreSQL foreign key violation
+          alert('Não é possível remover esta categoria, pois ela já está sendo utilizada em um ou mais lançamentos.');
+        } else {
+          alert(`Ocorreu um erro ao remover a categoria: ${error.message}`);
+        }
+      }
     }
   }
 

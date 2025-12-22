@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAppData } from '../../hooks/useAppData';
-import { Transaction, TransactionNature, CategoryType, Attachment } from '../../types';
+import { Transaction, TransactionNature, CategoryType, Attachment, NewAttachment } from '../../types';
 import Modal from '../ui/Modal';
 import PdfOptionsModal from '../ui/PdfOptionsModal';
 import ReceiptScannerModal from '../ai/ReceiptScannerModal';
@@ -18,7 +18,7 @@ interface ScannedData {
 }
 
 const TransactionForm: React.FC<{
-  onSubmit: (transaction: Omit<Transaction, 'id'>) => void;
+  onSubmit: (transaction: Omit<Transaction, 'id'>, newAttachments: NewAttachment[]) => Promise<void>;
   onClose: () => void;
   transactionToEdit?: Partial<Transaction> | null;
   transactionType: 'checking_account' | 'credit_card';
@@ -30,8 +30,9 @@ const TransactionForm: React.FC<{
     const [categoryId, setCategoryId] = useState(transactionToEdit?.categoryId || '');
     const [date, setDate] = useState(transactionToEdit?.date ? transactionToEdit.date.split('T')[0] : new Date().toISOString().split('T')[0]);
     const [value, setValue] = useState(transactionToEdit?.value || 0);
-    const [attachments, setAttachments] = useState<Attachment[]>(transactionToEdit?.attachments || []);
+    const [newAttachment, setNewAttachment] = useState<NewAttachment | null>(null); // Only one new attachment at a time
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         if (transactionToEdit) {
@@ -41,9 +42,20 @@ const TransactionForm: React.FC<{
             setCategoryId(transactionToEdit.categoryId || '');
             setDate(transactionToEdit.date ? transactionToEdit.date.split('T')[0] : new Date().toISOString().split('T')[0]);
             setValue(transactionToEdit.value || 0);
-            setAttachments(transactionToEdit.attachments || []);
+            setNewAttachment(null); // Reset new attachments when editing
         }
     }, [transactionToEdit]);
+    
+    useEffect(() => {
+        // Pre-fill form from a new scan
+        if (transactionToEdit && 'attachments' in transactionToEdit && Array.isArray(transactionToEdit.attachments) && transactionToEdit.attachments.length > 0) {
+            const potentialNewAttachment = transactionToEdit.attachments[0] as any;
+            if(potentialNewAttachment.data) { // This is how we identify a new scan
+                setNewAttachment(potentialNewAttachment);
+            }
+        }
+    }, [transactionToEdit])
+
 
     const filteredCategories = useMemo(() => {
         return categories.filter(c => c.type === (nature as unknown as CategoryType));
@@ -59,25 +71,28 @@ const TransactionForm: React.FC<{
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!validate()) return;
-        onSubmit({ description, nature, accountId, categoryId, date, value, type: transactionType, attachments });
+        setIsSubmitting(true);
+        const transactionData = { description, nature, accountId, categoryId, date, value, type: transactionType };
+        await onSubmit(transactionData, newAttachment ? [newAttachment] : []);
+        setIsSubmitting(false);
     };
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
-            {attachments.length > 0 && (
+            {newAttachment && (
                 <div className="relative group">
-                    <p className="text-sm font-medium text-gray-600 mb-2">Recibo Digitalizado</p>
+                    <p className="text-sm font-medium text-gray-600 mb-2">Novo Recibo Digitalizado</p>
                     <img
-                        src={`data:image/jpeg;base64,${attachments[0].data}`}
+                        src={`data:image/jpeg;base64,${newAttachment.data}`}
                         alt="Recibo digitalizado"
                         className="rounded-lg border-2 border-dashed p-1 max-h-40 w-auto mx-auto"
                     />
                      <button
                         type="button"
-                        onClick={() => setAttachments([])}
+                        onClick={() => setNewAttachment(null)}
                         className="absolute top-0 right-0 m-1 bg-white/50 rounded-full p-0.5 text-gray-600 hover:text-red-600 hover:bg-white transition-all opacity-0 group-hover:opacity-100"
                         title="Remover anexo"
                     >
@@ -136,7 +151,9 @@ const TransactionForm: React.FC<{
             
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
                 <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">Cancelar</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow">Confirmar</button>
+                <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow disabled:bg-blue-300">
+                    {isSubmitting ? 'Salvando...' : 'Confirmar'}
+                </button>
             </div>
         </form>
     );
@@ -173,18 +190,18 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
         setTransactionToEdit(null);
     };
 
-    const handleSubmit = (data: Omit<Transaction, 'id'>) => {
+    const handleSubmit = async (data: Omit<Transaction, 'id'>, newAttachments: NewAttachment[]) => {
         if (transactionToEdit && 'id' in transactionToEdit) {
-            updateTransaction({ ...transactionToEdit, ...data } as Transaction);
+            await updateTransaction({ ...transactionToEdit, ...data } as Transaction, newAttachments);
         } else {
-            addTransaction(data);
+            await addTransaction(data, newAttachments);
         }
         handleCloseModal();
     };
 
-    const handleDelete = (id: string) => {
-        if(window.confirm('Tem certeza que deseja remover este lançamento?')) {
-            deleteTransaction(id);
+    const handleDelete = async (id: string) => {
+        if(window.confirm('Tem certeza que deseja remover este lançamento? O anexo também será removido permanentemente.')) {
+            await deleteTransaction(id);
         }
     };
     
@@ -214,7 +231,7 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
     };
 
     const handleScanComplete = (data: ScannedData) => {
-      const newAttachment: Attachment = {
+      const newAttachment: NewAttachment = {
         id: crypto.randomUUID(),
         name: `Recibo_${data.date}.jpg`,
         type: 'image_base64_jpeg',
@@ -228,8 +245,8 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
         value: data.value,
         date: data.date,
         nature: TransactionNature.DESPESA,
-        categoryId: despesaCategory?.id || '', // Default to first expense category
-        attachments: [newAttachment]
+        categoryId: despesaCategory?.id || '',
+        attachments: [newAttachment] as any, // Transient state
       });
       setIsScannerOpen(false);
       setIsModalOpen(true);

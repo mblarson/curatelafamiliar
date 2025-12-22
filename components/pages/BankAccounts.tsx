@@ -7,7 +7,7 @@ import { formatCurrency } from '../../utils/formatters';
 import { Plus, Edit, Trash2, Landmark } from 'lucide-react';
 
 const BankAccountForm: React.FC<{
-  onSubmit: (account: Omit<BankAccount, 'id'>) => void;
+  onSubmit: (account: Omit<BankAccount, 'id'>) => Promise<void>;
   onClose: () => void;
   accountToEdit?: BankAccount | null;
 }> = ({ onSubmit, onClose, accountToEdit }) => {
@@ -16,8 +16,9 @@ const BankAccountForm: React.FC<{
   const [initialBalance, setInitialBalance] = useState(accountToEdit?.initialBalance || 0);
   const [dataAbertura, setDataAbertura] = useState(accountToEdit?.dataAbertura || new Date().toISOString().split('T')[0]);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       setError('O nome da conta é obrigatório.');
@@ -27,7 +28,9 @@ const BankAccountForm: React.FC<{
       setError('A data de abertura é obrigatória.');
       return;
     }
-    onSubmit({ name, type, initialBalance, dataAbertura });
+    setIsSubmitting(true);
+    await onSubmit({ name, type, initialBalance, dataAbertura });
+    setIsSubmitting(false);
   };
 
   return (
@@ -77,7 +80,9 @@ const BankAccountForm: React.FC<{
 
       <div className="flex justify-end gap-3 pt-4">
         <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">Cancelar</button>
-        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow">Confirmar</button>
+        <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow disabled:bg-blue-300">
+          {isSubmitting ? 'Salvando...' : 'Confirmar'}
+        </button>
       </div>
     </form>
   );
@@ -98,25 +103,23 @@ const BankAccounts: React.FC = () => {
     setAccountToEdit(null);
   };
 
-  const handleSubmit = (data: Omit<BankAccount, 'id'>) => {
+  const handleSubmit = async (data: Omit<BankAccount, 'id'>) => {
     if (accountToEdit) {
-      updateAccount({ ...accountToEdit, ...data });
+      await updateAccount({ ...accountToEdit, ...data });
     } else {
-      const newId = crypto.randomUUID();
-      const newAccount = { id: newId, ...data };
-      addAccount(newAccount);
+      const newAccount = await addAccount(data);
 
-      if (data.initialBalance > 0) {
+      if (newAccount && data.initialBalance > 0) {
           const receitaCategory = categories.find(c => c.type === CategoryType.RECEITA);
           if (!receitaCategory) {
               alert('Criação de conta bem-sucedida, mas o lançamento de Saldo Inicial falhou. Por favor, crie ao menos uma categoria de "Receita" para continuar.');
               handleCloseModal();
               return;
           }
-          addTransaction({
+          await addTransaction({
               description: 'Saldo Inicial',
               nature: TransactionNature.RECEITA,
-              accountId: newId,
+              accountId: newAccount.id,
               categoryId: receitaCategory.id,
               date: data.dataAbertura,
               value: data.initialBalance,
@@ -127,9 +130,9 @@ const BankAccounts: React.FC = () => {
     handleCloseModal();
   };
   
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if(window.confirm('Tem certeza que deseja remover esta conta? Todos os lançamentos associados também serão removidos.')) {
-      deleteAccount(id);
+      await deleteAccount(id);
     }
   }
 

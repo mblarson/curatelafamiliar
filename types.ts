@@ -30,8 +30,15 @@ export enum TransactionNature {
 export interface Attachment {
   id: string;
   name: string;
-  type: 'image_base64_jpeg';
+  url: string;
+}
+
+// Para uso transitório no formulário antes do upload
+export interface NewAttachment {
+  id: string;
+  name: string;
   data: string; // Base64 encoded string
+  type: 'image_base64_jpeg';
 }
 
 export interface Transaction {
@@ -44,4 +51,12 @@ export interface Transaction {
   value: number;
   type: 'checking_account' | 'credit_card';
   attachments?: Attachment[];
+}
+
+export interface Document {
+    id: string;
+    title: string;
+    file_name: string;
+    storage_path: string;
+    created_at: string;
 }

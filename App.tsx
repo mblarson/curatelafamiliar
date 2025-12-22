@@ -3,16 +3,31 @@ import Categories from './components/pages/Categories';
 import BankAccounts from './components/pages/BankAccounts';
 import Transactions from './components/pages/Transactions';
 import Reports from './components/pages/Reports';
+import Documents from './components/pages/Documents';
 import Console from './components/ui/Console';
 import SettingsModal from './components/ui/SettingsModal';
-import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPulse, Settings } from 'lucide-react';
+import { useAppData } from './hooks/useAppData';
+import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPulse, Settings, Loader2, FileText } from 'lucide-react';
 
-type Page = 'Dashboard' | 'Conta Bancária' | 'Categorias' | 'Conta Corrente' | 'Cartão de Crédito';
+type Page = 'Dashboard' | 'Conta Bancária' | 'Categorias' | 'Conta Corrente' | 'Cartão de Crédito' | 'Documentos';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('Dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const { isLoading } = useAppData();
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto" />
+          <p className="mt-4 text-lg font-semibold text-gray-600">Carregando dados...</p>
+          <p className="text-sm text-gray-400">Conectando ao banco de dados.</p>
+        </div>
+      </div>
+    );
+  }
 
   const renderPage = () => {
     switch (activePage) {
@@ -26,6 +41,8 @@ const App: React.FC = () => {
         return <Transactions transactionType="credit_card" title="Cartão de Crédito" />;
       case 'Dashboard':
         return <Reports />;
+      case 'Documentos':
+        return <Documents />;
       default:
         return <Reports />;
     }
@@ -35,6 +52,7 @@ const App: React.FC = () => {
     { name: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
     { name: 'Conta Corrente', icon: <Wallet className="w-5 h-5" /> },
     { name: 'Cartão de Crédito', icon: <CreditCard className="w-5 h-5" /> },
+    { name: 'Documentos', icon: <FileText className="w-5 h-5" /> },
     { name: 'Conta Bancária', icon: <Landmark className="w-5 h-5" /> },
     { name: 'Categorias', icon: <List className="w-5 h-5" /> },
   ];
