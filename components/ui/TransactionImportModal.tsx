@@ -79,7 +79,8 @@ const TransactionImportModal: React.FC<{
             const workbook = window.XLSX.read(data, { type: 'buffer' });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
-            const json: any[][] = window.XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, cellDates: true });
+            // Use raw:true to get the exact string value from the cell, preventing auto-parsing issues.
+            const json: any[][] = window.XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true });
 
             if (json.length < 2) throw new Error('A planilha está vazia.');
             
@@ -113,65 +114,50 @@ const TransactionImportModal: React.FC<{
                     categoryName: categoryVal,
                 };
 
-                // Validate Date - Robust Parsing
+                // Date Parsing (robust for raw string inputs)
                 let parsedDate: Date | null = null;
-                // 1. Handle valid Date objects from sheetjs
-                if (dateVal instanceof Date && !isNaN(dateVal.getTime())) {
-                    parsedDate = dateVal;
-                } 
-                // 2. Handle numeric Excel dates
-                else if (typeof dateVal === 'number') {
-                    // Excel's epoch starts on 1899-12-30. The number of days between that and Unix epoch is 25569.
-                    // We create a date in UTC to avoid timezone issues.
-                    const date = new Date(Math.round((dateVal - 25569) * 86400 * 1000));
-                    if (!isNaN(date.getTime())) {
-                        parsedDate = date;
-                    }
-                }
-                // 3. Handle string dates in DD/MM/AAAA format
-                else if (typeof dateVal === 'string') {
-                    const trimmedDateVal = dateVal.trim();
-                    const parts = trimmedDateVal.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+                const dateStr = String(dateVal || '').trim();
+                if (dateStr) {
+                    const parts = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
                     if (parts) {
-                        // parts[1] = DD, parts[2] = MM, parts[3] = AAAA
                         const day = parseInt(parts[1], 10);
-                        const month = parseInt(parts[2], 10) - 1; // JS months are 0-indexed
+                        const month = parseInt(parts[2], 10) - 1;
                         const year = parseInt(parts[3], 10);
-                        
-                        // Create date in UTC to avoid local timezone from shifting the date
                         const date = new Date(Date.UTC(year, month, day));
-                        
-                        // Validate if the created date is what we expect (e.g., handles 32/02/2024)
                         if (date.getUTCFullYear() === year && date.getUTCMonth() === month && date.getUTCDate() === day) {
                             parsedDate = date;
+                        }
+                    } else if (!isNaN(Number(dateStr))) {
+                        const excelSerial = Number(dateStr);
+                        if (excelSerial > 25569) {
+                            const date = new Date(Math.round((excelSerial - 25569) * 86400 * 1000));
+                            if (!isNaN(date.getTime())) {
+                                parsedDate = date;
+                            }
                         }
                     }
                 }
 
                 if (parsedDate) {
-                    // We have a valid Date object, now convert it to 'YYYY-MM-DD' string for storage
                     result.date = parsedDate.toISOString().split('T')[0];
                 } else {
                     result.status = 'invalid';
                     result.message = 'Data inválida. Use DD/MM/AAAA ou formate a célula como Data.';
                 }
 
-                // Validate Value - More robust parsing for different currency formats
+                // --- Definitive PT-BR Value Parsing Logic ---
+                const valueStr = (valueVal === null || valueVal === undefined) ? '' : String(valueVal).trim();
                 let numValue: number;
-                if (typeof valueVal === 'number') {
-                    numValue = valueVal;
-                } else if (typeof valueVal === 'string') {
-                    const s = String(valueVal).trim();
-                    if (s.includes(',')) {
-                        // Contains a comma, assume pt-BR format like "1.234,56"
-                        numValue = parseFloat(s.replace(/\./g, '').replace(',', '.'));
-                    } else {
-                        // No comma, assume format like "1234.56" or "1,234.56"
-                        // Here we only remove commas, treating dots as potential decimal separators.
-                        numValue = parseFloat(s.replace(/,/g, ''));
-                    }
-                } else {
+
+                if (valueStr === '') {
                     numValue = NaN;
+                } else {
+                    const s = valueStr.replace("R$", "").trim();
+                    // Absolute Rule: dot is for thousands, comma is for decimals.
+                    // 1. Remove all dots (thousands separators).
+                    // 2. Replace the comma (decimal separator) with a dot for parseFloat.
+                    const standardized = s.replace(/\./g, '').replace(',', '.');
+                    numValue = parseFloat(standardized);
                 }
                 
                 if (typeof numValue === 'number' && !isNaN(numValue) && numValue !== 0) {

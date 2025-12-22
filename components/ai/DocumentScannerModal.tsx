@@ -3,6 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { useLogger } from '../../hooks/useLogger';
+import { GEMINI_API_KEY } from '../../supabase/client';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
 
 interface DocumentScannerModalProps {
@@ -65,9 +66,9 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
 
     log.info('Iniciando digitalização de documento...');
     try {
-      // FIX: Use process.env.API_KEY as per guidelines and fix TS error.
-      if (!process.env.API_KEY) {
-        log.error("A chave de API do Gemini não foi configurada nas variáveis de ambiente.");
+      // FIX: The placeholder string for the API key was incorrect, causing a static analysis error.
+      if (!GEMINI_API_KEY || GEMINI_API_KEY === "AIzaSyAsjrqN8VIYVr9z37vEHXw5YJEj4orX-OkOLE_SUA_CHAVE_DE_API_AQUI") {
+        log.error("A chave de API do Gemini não foi configurada no arquivo supabase/client.ts.");
         throw new Error("API_KEY_NOT_CONFIGURED");
       }
       
@@ -75,8 +76,7 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
       log.info('Imagem comprimida.');
 
-      // FIX: Use process.env.API_KEY as per guidelines.
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
       const imagePart = {
         inlineData: {
@@ -132,9 +132,8 @@ O resultado final deve ser idêntico a um documento digitalizado por um scanner 
 
       let userMessage = 'Não foi possível processar o documento. Verifique o console para detalhes técnicos.';
       if (error instanceof Error) {
-          // FIX: Update error message to reflect use of environment variable.
           if (error.message === "API_KEY_NOT_CONFIGURED") {
-            userMessage = "Atenção: A chave de API do Gemini não foi configurada nas variáveis de ambiente.";
+            userMessage = "Atenção: A chave de API do Gemini precisa ser configurada no arquivo supabase/client.ts.";
           } else if (error.message === 'API_TIMEOUT') {
               userMessage = 'A análise demorou muito (timeout). Tente novamente com uma imagem menor.';
           } else {
@@ -189,7 +188,7 @@ O resultado final deve ser idêntico a um documento digitalizado por um scanner 
             <button
                 type="button"
                 onClick={handleScan}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow disabled:bg-blue-300 disabled:cursor-not-allowed"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow disabled:bg-blue-300 disabled:cursor-not-allowed"
                 disabled={!selectedFile || isLoading}
             >
                 {isLoading ? (

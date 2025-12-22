@@ -27,8 +27,8 @@ interface AppContextType {
   deleteDocument: (id: string) => Promise<void>;
   
   calculateCurrentBalance: (accountId: string) => number;
-
-  // Fix: Add apiKey properties to the context type to resolve errors in SettingsModal.
+  
+  // FIX: Add apiKey properties to the context type to be used by SettingsModal.
   apiKey: string | null;
   saveApiKey: (key: string) => void;
   clearApiKey: () => void;
@@ -42,12 +42,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
-  // Fix: Add state for API key, initialized from localStorage.
-  const [apiKey, setApiKey] = useState<string | null>(() => {
-    return localStorage.getItem('gemini_api_key');
-  });
+  // FIX: Add state to manage the Gemini API key.
+  const [apiKey, setApiKey] = useState<string | null>(null);
 
   useEffect(() => {
+    // FIX: Load API key from local storage on initial app load.
+    const storedApiKey = localStorage.getItem('gemini-api-key');
+    if (storedApiKey) {
+      setApiKey(storedApiKey);
+    }
+    
     const fetchData = async () => {
       try {
         const [accountsRes, categoriesRes, transactionsRes, documentsRes] = await Promise.all([
@@ -80,17 +84,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     fetchData();
   }, []);
-
-  // Fix: Add API key management functions.
-  const saveApiKey = (key: string) => {
-    localStorage.setItem('gemini_api_key', key);
-    setApiKey(key);
-  };
-  
-  const clearApiKey = () => {
-    localStorage.removeItem('gemini_api_key');
-    setApiKey(null);
-  };
 
   // Accounts CRUD
   const addAccount = async (accountData: Omit<BankAccount, 'id'>): Promise<BankAccount | null> => {
@@ -239,6 +232,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setDocuments(prev => prev.filter(d => d.id !== id));
   };
 
+  // FIX: Add functions to save and clear the API key from local storage.
+  const saveApiKey = (key: string) => {
+    localStorage.setItem('gemini-api-key', key);
+    setApiKey(key);
+  };
+
+  const clearApiKey = () => {
+    localStorage.removeItem('gemini-api-key');
+    setApiKey(null);
+  };
+
   const calculateCurrentBalance = useMemo(() => (accountId: string): number => {
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) return 0;
@@ -262,8 +266,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     transactions, addTransaction, addTransactionsBatch, updateTransaction, deleteTransaction,
     documents, addDocument, deleteDocument,
     calculateCurrentBalance,
-    // Fix: provide API key values in context
-    apiKey, saveApiKey, clearApiKey,
+    // FIX: Expose apiKey state and functions through the context.
+    apiKey,
+    saveApiKey,
+    clearApiKey,
   };
 
   return (

@@ -265,12 +265,6 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
                     <p className="text-gray-500 mt-1">Registre e gerencie suas movimentações financeiras.</p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    {transactionType === 'credit_card' && (
-                        <button onClick={() => setIsImportModalOpen(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-semibold shadow-sm">
-                            <Upload size={18} />
-                            Importar XLS
-                        </button>
-                    )}
                     <button onClick={() => setIsPdfModalOpen(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-semibold shadow-sm">
                         <Download size={18} />
                         Gerar PDF

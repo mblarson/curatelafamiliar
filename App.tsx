@@ -10,7 +10,7 @@ import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPuls
 
 type Page = 'Dashboard' | 'Conta Bancária' | 'Categorias' | 'Conta Corrente' | 'Cartão de Crédito' | 'Documentos';
 
-const App: React.FC = () => {
+const MainApp: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('Dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { isLoading } = useAppData();
@@ -20,7 +20,7 @@ const App: React.FC = () => {
       <div className="flex h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto" />
-          <p className="mt-4 text-lg font-semibold text-gray-600">Carregando...</p>
+          <p className="mt-4 text-lg font-semibold text-gray-600">Carregando dados...</p>
         </div>
       </div>
     );
@@ -132,6 +132,10 @@ const App: React.FC = () => {
       <Console />
     </div>
   );
+};
+
+const App: React.FC = () => {
+  return <MainApp />;
 };
 
 export default App;
