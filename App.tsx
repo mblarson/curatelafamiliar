@@ -5,7 +5,6 @@ import Transactions from './components/pages/Transactions';
 import Reports from './components/pages/Reports';
 import Documents from './components/pages/Documents';
 import Console from './components/ui/Console';
-import SettingsModal from './components/ui/SettingsModal';
 import { useAppData } from './hooks/useAppData';
 import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPulse, Settings, Loader2, FileText } from 'lucide-react';
 
@@ -14,7 +13,6 @@ type Page = 'Dashboard' | 'Conta Bancária' | 'Categorias' | 'Conta Corrente' | 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('Dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { isLoading } = useAppData();
 
   if (isLoading) {
@@ -99,13 +97,6 @@ const App: React.FC = () => {
         </nav>
         
         <div>
-           <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="flex w-full items-center gap-3 p-3 rounded-lg transition-colors font-medium text-gray-600 hover:bg-blue-50 hover:text-blue-600"
-          >
-            <Settings className="w-5 h-5" />
-            <span>Configurações</span>
-          </button>
           <div className="text-center text-xs text-gray-400 mt-4">
             <p>Feito com cuidado para você.</p>
           </div>
@@ -139,7 +130,6 @@ const App: React.FC = () => {
       )}
       
       {/* Modals */}
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       <Console />
     </div>
   );

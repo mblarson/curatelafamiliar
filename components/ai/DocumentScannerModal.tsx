@@ -3,8 +3,9 @@ import { GoogleGenAI } from "@google/genai";
 import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { useLogger } from '../../hooks/useLogger';
-import { useAppData } from '../../hooks/useAppData';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
+
+// FIX: API key is now handled via environment variables as per guidelines.
 
 interface DocumentScannerModalProps {
   isOpen: boolean;
@@ -17,7 +18,6 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [scanError, setScanError] = useState('');
-  const { apiKey } = useAppData();
   const log = useLogger();
 
   const resetState = () => {
@@ -67,16 +67,12 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
 
     log.info('Iniciando digitalização de documento...');
     try {
-      const finalApiKey = process.env.API_KEY || apiKey;
-      if (!finalApiKey) {
-        throw new Error('API_KEY_MISSING');
-      }
-
       log.info('Comprimindo imagem...');
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
       log.info('Imagem comprimida.');
 
-      const ai = new GoogleGenAI({ apiKey: finalApiKey });
+      // FIX: Initialize GoogleGenAI with API_KEY from environment variable.
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
       const imagePart = {
         inlineData: {
@@ -122,14 +118,11 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
 
     } catch (error) {
       if (error instanceof Error) {
+        // FIX: Removed API_KEY_MISSING case as it's no longer relevant.
         switch(error.message) {
           case 'API_TIMEOUT':
             log.error("A requisição para digitalizar documento expirou (timeout de 90s).");
             setScanError('A análise demorou muito. Tente novamente com uma imagem menor ou verifique sua conexão.');
-            break;
-          case 'API_KEY_MISSING':
-            log.error("Chave da API não encontrada. Verifique a configuração do ambiente.");
-            setScanError('Erro de configuração: A chave da API não foi encontrada.');
             break;
           default:
             log.error("Erro ao digitalizar documento.", { error: error.toString() });

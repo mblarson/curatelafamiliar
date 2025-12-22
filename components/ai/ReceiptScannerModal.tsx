@@ -3,8 +3,9 @@ import { GoogleGenAI, Type } from "@google/genai";
 import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { useLogger } from '../../hooks/useLogger';
-import { useAppData } from '../../hooks/useAppData';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
+
+// FIX: API key is now handled via environment variables as per guidelines.
 
 interface ScannedData {
   value: number;
@@ -24,7 +25,6 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [scanError, setScanError] = useState('');
-  const { apiKey } = useAppData();
   const log = useLogger();
 
   const resetState = () => {
@@ -76,16 +76,12 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
 
     log.info('Iniciando digitalização do recibo...');
     try {
-      const finalApiKey = process.env.API_KEY || apiKey;
-      if (!finalApiKey) {
-        throw new Error('API_KEY_MISSING');
-      }
-
       log.info('Comprimindo e convertendo imagem para base64...');
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
       log.info('Imagem processada. Enviando para a IA...');
 
-      const ai = new GoogleGenAI({ apiKey: finalApiKey });
+      // FIX: Initialize GoogleGenAI with API_KEY from environment variable.
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
       const imagePart = {
         inlineData: {
@@ -134,6 +130,10 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       log.info('Ambas as respostas da IA foram recebidas.');
 
       // Processando os resultados
+      // FIX: Add check for dataResponse.text to prevent crash on trim().
+      if (!dataResponse.text) {
+        throw new Error("A IA não retornou dados de texto para extração.");
+      }
       const extractedData = JSON.parse(dataResponse.text.trim());
       log.info('Dados extraídos:', extractedData);
 
@@ -165,9 +165,8 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
     } catch (error) {
        if (error instanceof Error) {
         log.error("Erro ao digitalizar recibo.", { message: error.message, stack: error.stack });
-        if (error.message.includes('API_KEY_MISSING')) {
-            setScanError('Erro de configuração: A chave da API não foi encontrada.');
-        } else if (error.message.includes('JSON')) {
+        // FIX: Removed API_KEY_MISSING check as it's no longer relevant.
+        if (error.message.includes('JSON')) {
             setScanError('A IA retornou um formato inválido. Tente uma imagem mais nítida.');
         } else {
             setScanError('A IA não conseguiu processar a imagem. Tente novamente.');

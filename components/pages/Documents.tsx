@@ -117,10 +117,12 @@ const AddDocumentModal: React.FC<{
                     Anexar Arquivo
                  </label>
                  <input id="file-upload" type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files && handleFileChange(e.target.files[0])} />
-                 <span className="text-sm text-gray-500">ou</span>
-                 <button type="button" onClick={() => setIsScannerOpen(true)} className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-100 hover:bg-indigo-200 px-4 py-2 rounded-md transition-colors">
-                    Digitalizar com IA
-                 </button>
+                <>
+                    <span className="text-sm text-gray-500">ou</span>
+                    <button type="button" onClick={() => setIsScannerOpen(true)} className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-100 hover:bg-indigo-200 px-4 py-2 rounded-md transition-colors">
+                        Digitalizar com IA
+                    </button>
+                </>
              </div>
           </div>
 

@@ -25,34 +25,9 @@ interface AppContextType {
   deleteDocument: (id: string) => Promise<void>;
   
   calculateCurrentBalance: (accountId: string) => number;
-
-  apiKey: string | null;
-  setApiKey: (key: string | null) => void;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
-
-const usePersistentApiKey = (key: string, defaultValue: string | null): [string | null, (value: string | null) => void] => {
-  const [state, setState] = useState<string | null>(() => {
-    try {
-      const storedValue = localStorage.getItem(key);
-      return storedValue ? JSON.parse(storedValue) : defaultValue;
-    } catch {
-      return defaultValue;
-    }
-  });
-
-  const setPersistentState = (value: string | null) => {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-      setState(value);
-    } catch (error) {
-      console.error("Failed to save API key to localStorage:", error);
-    }
-  };
-
-  return [state, setPersistentState];
-};
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
@@ -60,7 +35,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [apiKey, setApiKey] = usePersistentApiKey('apiKey', null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -252,7 +226,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     transactions, addTransaction, updateTransaction, deleteTransaction,
     documents, addDocument, deleteDocument,
     calculateCurrentBalance,
-    apiKey, setApiKey,
   };
 
   return (
