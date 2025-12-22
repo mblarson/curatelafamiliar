@@ -5,7 +5,7 @@ const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 
 // IMPORTANTE: Cole sua Chave de API da Gemini aqui.
 // Você pode obter uma chave em https://ai.google.dev/
-export const GEMINI_API_KEY = "COLE_SUA_CHAVE_DE_API_AQUI";
+export const GEMINI_API_KEY = "AIzaSyAsjrqN8VIYVr9z37vEHXw5YJEj4orX-Ok";
 
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
