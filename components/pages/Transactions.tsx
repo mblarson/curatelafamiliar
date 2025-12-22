@@ -15,7 +15,8 @@ const TransactionForm: React.FC<{
   onClose: () => void;
   transactionToEdit?: Partial<Transaction> | null;
   transactionType: 'checking_account' | 'credit_card';
-}> = ({ onSubmit, onClose, transactionToEdit, transactionType }) => {
+  isAiAvailable: boolean;
+}> = ({ onSubmit, onClose, transactionToEdit, transactionType, isAiAvailable }) => {
     const { accounts, categories } = useAppData();
     const [nature, setNature] = useState<TransactionNature>(transactionToEdit?.nature || TransactionNature.DESPESA);
     const [description, setDescription] = useState(transactionToEdit?.description || '');
@@ -117,8 +118,10 @@ const TransactionForm: React.FC<{
                              <button
                                 type="button"
                                 onClick={() => setIsDocScannerOpen(true)}
-                                className="absolute bottom-2 right-2 bg-white/80 backdrop-blur-sm text-blue-600 rounded-full p-1.5 shadow-md hover:scale-110 transition-transform"
+                                className="absolute bottom-2 right-2 bg-white/80 backdrop-blur-sm text-blue-600 rounded-full p-1.5 shadow-md hover:scale-110 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
                                 aria-label="Substituir anexo"
+                                disabled={!isAiAvailable}
+                                title={!isAiAvailable ? "Funcionalidade indisponível: configure a chave da API." : "Digitalizar novo anexo com IA"}
                             >
                                 <Edit size={18} />
                             </button>
@@ -135,10 +138,12 @@ const TransactionForm: React.FC<{
                         <button
                             type="button"
                             onClick={() => setIsDocScannerOpen(true)}
-                            className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-3 bg-white text-blue-600 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors font-semibold"
+                            className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-3 bg-white text-blue-600 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors font-semibold disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"
+                            disabled={!isAiAvailable}
+                            title={!isAiAvailable ? "Funcionalidade indisponível: configure a chave da API." : "Digitalizar anexo com IA"}
                         >
                             <Paperclip size={18} />
-                            Digitalizar e Anexar Recibo
+                            {isAiAvailable ? 'Digitalizar e Anexar Recibo' : 'Digitalização indisponível'}
                         </button>
                     )}
                 </div>
@@ -169,6 +174,8 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
     const [filterDate, setFilterDate] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
     const [filterNature, setFilterNature] = useState('');
+
+    const isAiAvailable = useMemo(() => !!process.env.API_KEY, []);
 
     const filteredTransactions = useMemo(() => {
         return transactions
@@ -228,7 +235,12 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
                         <Download size={18} />
                         Gerar PDF
                     </button>
-                    <button onClick={() => setIsScannerOpen(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-semibold shadow-sm">
+                    <button 
+                        onClick={() => setIsScannerOpen(true)} 
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-semibold shadow-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-300 disabled:cursor-not-allowed"
+                        disabled={!isAiAvailable}
+                        title={!isAiAvailable ? "Funcionalidade indisponível: configure a chave da API." : "Digitalizar e preencher com IA"}
+                    >
                         <Camera size={18} />
                         Digitalizar e Preencher
                     </button>
@@ -324,7 +336,7 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
             )}
 
             <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={transactionToEdit && 'id' in transactionToEdit ? 'Editar Lançamento' : 'Novo Lançamento'}>
-                <TransactionForm onSubmit={handleSubmit} onClose={handleCloseModal} transactionToEdit={transactionToEdit} transactionType={transactionType} />
+                <TransactionForm onSubmit={handleSubmit} onClose={handleCloseModal} transactionToEdit={transactionToEdit} transactionType={transactionType} isAiAvailable={isAiAvailable} />
             </Modal>
         </div>
     );
