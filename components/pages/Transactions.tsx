@@ -4,11 +4,12 @@ import { Transaction, TransactionNature, CategoryType, Attachment, NewAttachment
 import Modal from '../ui/Modal';
 import PdfOptionsModal from '../ui/PdfOptionsModal';
 import ReceiptScannerModal from '../ai/ReceiptScannerModal';
+import TransactionImportModal from '../ui/TransactionImportModal';
 import ViewAttachmentModal from '../ui/ViewAttachmentModal';
 import CurrencyInput from '../ui/CurrencyInput';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { generateTransactionsPDF } from '../../utils/pdfGenerator';
-import { Plus, Edit, Trash2, Download, Filter, Wallet, ScanLine, Paperclip, XCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Download, Filter, Wallet, ScanLine, Paperclip, XCircle, Upload } from 'lucide-react';
 
 interface ScannedData {
   value: number;
@@ -165,6 +166,7 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [transactionToEdit, setTransactionToEdit] = useState<Partial<Transaction> | null>(null);
     const [viewingAttachment, setViewingAttachment] = useState<Attachment | null>(null);
 
@@ -263,6 +265,12 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
                     <p className="text-gray-500 mt-1">Registre e gerencie suas movimentações financeiras.</p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    {transactionType === 'credit_card' && (
+                        <button onClick={() => setIsImportModalOpen(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-semibold shadow-sm">
+                            <Upload size={18} />
+                            Importar XLS
+                        </button>
+                    )}
                     <button onClick={() => setIsPdfModalOpen(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-semibold shadow-sm">
                         <Download size={18} />
                         Gerar PDF
@@ -361,6 +369,12 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
                 onScanComplete={handleScanComplete}
             />
             
+            <TransactionImportModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                transactionType={transactionType}
+            />
+
             {viewingAttachment && (
               <ViewAttachmentModal
                   isOpen={!!viewingAttachment}

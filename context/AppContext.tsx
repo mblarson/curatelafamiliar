@@ -18,6 +18,7 @@ interface AppContextType {
   
   transactions: Transaction[];
   addTransaction: (transaction: Omit<Transaction, 'id'>, newAttachments?: NewAttachment[]) => Promise<void>;
+  addTransactionsBatch: (transactions: Omit<Transaction, 'id'>[]) => Promise<void>;
   updateTransaction: (transaction: Transaction, newAttachments?: NewAttachment[]) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
 
@@ -175,6 +176,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (error) return console.error("Error adding transaction:", error);
     setTransactions(prev => [newTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
   };
+  const addTransactionsBatch = async (transactionsData: Omit<Transaction, 'id'>[]) => {
+    const newTransactions = transactionsData.map(t => ({ ...t, id: crypto.randomUUID() }));
+    const { error } = await supabase.from('transactions').insert(newTransactions);
+    if (error) {
+        console.error("Error adding transactions in batch:", error);
+        throw error;
+    }
+    setTransactions(prev => [...prev, ...newTransactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+  };
   const updateTransaction = async (updatedTransactionData: Transaction, newAttachments: NewAttachment[] = []) => {
     const uploadedAttachments = await handleAttachmentUpload(newAttachments);
     const finalAttachments = [...(updatedTransactionData.attachments || []), ...uploadedAttachments];
@@ -249,7 +259,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     isLoading,
     accounts, addAccount, updateAccount, deleteAccount, getAccountById,
     categories, addCategory, addCategoriesBatch, updateCategory, deleteCategory,
-    transactions, addTransaction, updateTransaction, deleteTransaction,
+    transactions, addTransaction, addTransactionsBatch, updateTransaction, deleteTransaction,
     documents, addDocument, deleteDocument,
     calculateCurrentBalance,
     // Fix: provide API key values in context
