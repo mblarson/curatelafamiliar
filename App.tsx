@@ -4,12 +4,13 @@ import BankAccounts from './components/pages/BankAccounts';
 import Transactions from './components/pages/Transactions';
 import Reports from './components/pages/Reports';
 import Documents from './components/pages/Documents';
+import Funcionamento from './components/pages/Funcionamento';
 import Console from './components/ui/Console';
 import AIChat from './components/ai/AIChat';
 import { useAppData } from './hooks/useAppData';
-import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPulse, Loader2, FileText } from 'lucide-react';
+import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPulse, Loader2, FileText, Activity } from 'lucide-react';
 
-type Page = 'Dashboard' | 'Conta Bancária' | 'Categorias' | 'Conta Corrente' | 'Cartão de Crédito' | 'Documentos';
+type Page = 'Dashboard' | 'Conta Bancária' | 'Categorias' | 'Conta Corrente' | 'Cartão de Crédito' | 'Documentos' | 'Funcionamento';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('Dashboard');
@@ -41,6 +42,8 @@ const App: React.FC = () => {
         return <Reports />;
       case 'Documentos':
         return <Documents />;
+      case 'Funcionamento':
+        return <Funcionamento />;
       default:
         return <Reports />;
     }
@@ -53,6 +56,7 @@ const App: React.FC = () => {
     { name: 'Documentos', icon: <FileText className="w-5 h-5" /> },
     { name: 'Conta Bancária', icon: <Landmark className="w-5 h-5" /> },
     { name: 'Categorias', icon: <List className="w-5 h-5" /> },
+    { name: 'Funcionamento', icon: <Activity className="w-5 h-5" /> },
   ];
 
   const NavLink: React.FC<{ page: Page, icon: React.ReactNode }> = ({ page, icon }) => (

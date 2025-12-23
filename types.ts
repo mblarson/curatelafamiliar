@@ -60,3 +60,8 @@ export interface Document {
     storage_path: string;
     created_at: string;
 }
+
+export interface KeepAliveLog {
+  id: string;
+  pinged_at: string;
+}

@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, ReactNode, useMemo } from 'react';
-import { BankAccount, Category, Transaction, Document, Attachment, NewAttachment } from '../types';
+import { BankAccount, Category, Transaction, Document, Attachment, NewAttachment, KeepAliveLog } from '../types';
 import { supabase, base64ToBlob } from '../supabase/client';
 
 interface AppContextType {
@@ -26,6 +26,8 @@ interface AppContextType {
   addDocument: (title: string, fileName: string, base64Data: string) => Promise<void>;
   deleteDocument: (id: string) => Promise<void>;
   
+  keepAliveLogs: KeepAliveLog[];
+  
   calculateCurrentBalance: (accountId: string) => number;
 }
 
@@ -37,21 +39,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [keepAliveLogs, setKeepAliveLogs] = useState<KeepAliveLog[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [accountsRes, categoriesRes, transactionsRes, documentsRes] = await Promise.all([
+        const [accountsRes, categoriesRes, transactionsRes, documentsRes, keepAliveLogsRes] = await Promise.all([
           supabase.from('accounts').select('*'),
           supabase.from('categories').select('*'),
           supabase.from('transactions').select('*').order('date', { ascending: false }),
-          supabase.from('documents').select('*').order('created_at', { ascending: false })
+          supabase.from('documents').select('*').order('created_at', { ascending: false }),
+          supabase.from('keep_alive_logs').select('*').order('pinged_at', { ascending: false })
         ]);
 
         if (accountsRes.error) throw accountsRes.error;
         if (categoriesRes.error) throw categoriesRes.error;
         if (transactionsRes.error) throw transactionsRes.error;
         if (documentsRes.error) throw documentsRes.error;
+        if (keepAliveLogsRes.error) throw keepAliveLogsRes.error;
         
         const typedAccounts = (accountsRes.data || []).map(a => ({...a, dataAbertura: a.dataAbertura.split('T')[0]}));
         const typedTransactions = (transactionsRes.data || []).map(t => ({...t, date: t.date.split('T')[0]}));
@@ -60,6 +65,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCategories(categoriesRes.data || []);
         setTransactions(typedTransactions);
         setDocuments(documentsRes.data || []);
+        setKeepAliveLogs(keepAliveLogsRes.data || []);
 
       } catch (error: any)
       {
@@ -241,6 +247,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     categories, addCategory, addCategoriesBatch, updateCategory, deleteCategory,
     transactions, addTransaction, addTransactionsBatch, updateTransaction, deleteTransaction,
     documents, addDocument, deleteDocument,
+    keepAliveLogs,
     calculateCurrentBalance,
   };
 
