@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 // =================================================================
 // Substitua o valor abaixo pela sua chave real obtida em https://ai.google.dev/
 // Este é o único lugar onde você precisa configurar a chave.
-export const GEMINI_API_KEY = "COLE_SUA_CHAVE_DE_API_AQUI";
+export const GEMINI_API_KEY = "AIzaSyAsjrqN8VIYVr9z37vEHXw5YJEj4orX-Ok";
 // =================================================================
 
 const supabaseUrl = "https://wjgvusaiwyapldzyhhqz.supabase.co";
