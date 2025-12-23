@@ -4,7 +4,7 @@ import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { useLogger } from '../../hooks/useLogger';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
-// FIX: Removed import of hardcoded API key.
+import { GEMINI_API_KEY } from '../../supabase/client';
 
 interface ScannedData {
   value: number;
@@ -71,7 +71,12 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       return;
     }
     
-    // FIX: Removed check for placeholder API key, assuming process.env.API_KEY is set.
+    if (GEMINI_API_KEY === "COLE_SUA_CHAVE_DE_API_AQUI") {
+      const devError = "PARA O DESENVOLVEDOR: A chave de API do Gemini não foi configurada. Insira sua chave no arquivo 'supabase/client.ts'.";
+      log.error(devError);
+      setScanError(devError);
+      return;
+    }
 
     setIsLoading(true);
     setScanError('');
@@ -82,8 +87,7 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
       log.info('Imagem processada. Enviando para a IA...');
       
-      // FIX: Initialize GoogleGenAI with API key from environment variable.
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
       const imagePart = {
         inlineData: {
@@ -128,9 +132,19 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       handleClose();
 
     } catch (error) {
-      log.error("Erro na digitalização:", error);
-      // FIX: Removed developer-specific error message about invalid API key.
-      setScanError('Falha ao processar o recibo. Verifique a qualidade da imagem e tente novamente.');
+      log.error("Erro detalhado na digitalização:", error);
+      let userMessage = 'Falha ao processar o recibo. Verifique a qualidade da imagem e tente novamente.';
+      if (error instanceof Error) {
+        const message = error.message.toLowerCase();
+        if (message.includes('api key not valid')) {
+            userMessage = "PARA O DESENVOLVEDOR: A chave de API do Gemini configurada em 'supabase/client.ts' é inválida.";
+        } else if (message.includes('json')) {
+            userMessage = 'A IA retornou um formato inválido. Tente uma imagem mais nítida ou de um recibo diferente.';
+        } else if (message.includes('quota')) {
+            userMessage = 'A cota de uso da API foi excedida. Verifique sua conta do Google AI Studio.';
+        }
+      }
+      setScanError(userMessage);
     } finally {
       setIsLoading(false);
     }
