@@ -4,7 +4,7 @@ import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { useLogger } from '../../hooks/useLogger';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
-import { GEMINI_API_KEY } from '../../supabase/client';
+// FIX: Removed GEMINI_API_KEY import to use environment variable as per guidelines.
 
 interface ScannedData {
   value: number;
@@ -71,12 +71,7 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       return;
     }
     
-    if (GEMINI_API_KEY === "COLE_SUA_CHAVE_DE_API_AQUI") {
-      const devError = "PARA O DESENVOLVEDOR: A chave de API do Gemini não foi configurada. Insira sua chave no arquivo 'supabase/client.ts'.";
-      log.error(devError);
-      setScanError(devError);
-      return;
-    }
+    // FIX: Removed check for placeholder API key. As per guidelines, the API key is assumed to be configured via environment variables.
 
     setIsLoading(true);
     setScanError('');
@@ -87,7 +82,8 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
       log.info('Imagem processada. Enviando para a IA...');
       
-      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+      // FIX: Use process.env.API_KEY for Gemini API initialization as per guidelines.
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
       const imagePart = {
         inlineData: {
@@ -136,12 +132,14 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       let userMessage = 'Falha ao processar o recibo. Verifique a qualidade da imagem e tente novamente.';
       if (error instanceof Error) {
         const message = error.message.toLowerCase();
-        if (message.includes('api key not valid')) {
-            userMessage = "PARA O DESENVOLVEDOR: A chave de API do Gemini configurada em 'supabase/client.ts' é inválida.";
+        if (message.includes('api key not valid') || message.includes('api key is missing')) {
+            userMessage = "A chave de API do Gemini é inválida ou não foi configurada. Verifique as configurações.";
         } else if (message.includes('json')) {
             userMessage = 'A IA retornou um formato inválido. Tente uma imagem mais nítida ou de um recibo diferente.';
         } else if (message.includes('quota')) {
             userMessage = 'A cota de uso da API foi excedida. Verifique sua conta do Google AI Studio.';
+        } else if (message.includes('network') || message.includes('failed to fetch')) {
+            userMessage = 'Erro de conexão. Verifique sua internet e tente novamente.';
         }
       }
       setScanError(userMessage);

@@ -5,6 +5,36 @@ import { CategoryType } from '../../types';
 import { ArrowUpRight, ArrowDownLeft, Scale, ArrowRight } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
+const CustomLegend = (props: any) => {
+  const { payload } = props;
+  if (!payload || !payload.length) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 w-full">
+        <ul className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1.5 text-xs md:text-sm justify-center">
+        {payload.map((entry: any, index: number) => (
+            <li
+            key={`item-${index}`}
+            className="flex items-center gap-2"
+            title={entry.value}
+            >
+            <span
+                className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0"
+                style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-gray-600 truncate">
+                {entry.value}
+            </span>
+            </li>
+        ))}
+        </ul>
+    </div>
+  );
+};
+
+
 const Reports: React.FC = () => {
   const { accounts, transactions, categories, calculateCurrentBalance } = useAppData();
 
@@ -111,14 +141,14 @@ const Reports: React.FC = () => {
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm">
            <h2 className="text-lg font-semibold text-gray-700 mb-4">Despesas por Categoria</h2>
             {expenseByCategoryData.length > 0 ? (
-                <div style={{ width: '100%', height: 300 }}>
+                <div style={{ width: '100%', height: 350 }}>
                     <ResponsiveContainer>
                         <PieChart>
-                            <Pie data={expenseByCategoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" labelLine={false} stroke="none">
+                            <Pie data={expenseByCategoryData} dataKey="value" nameKey="name" cx="50%" cy="40%" outerRadius={80} fill="#8884d8" labelLine={false} stroke="none">
                                 {expenseByCategoryData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                             </Pie>
                             <Tooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '0.75rem' }} />
-                            <Legend iconType="circle" />
+                            <Legend content={<CustomLegend />} />
                         </PieChart>
                     </ResponsiveContainer>
                 </div>

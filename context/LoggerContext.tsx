@@ -29,7 +29,18 @@ export const LoggerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       timestamp: new Date(),
       level,
       message,
-      data: data ? JSON.parse(JSON.stringify(data)) : undefined // Deep copy to avoid mutation issues
+      data: (() => {
+        if (!data) return undefined;
+        if (data instanceof Error) {
+          return { name: data.name, message: data.message, stack: data.stack };
+        }
+        try {
+          // Attempt a safe deep copy for other objects
+          return JSON.parse(JSON.stringify(data));
+        } catch (e) {
+          return "Unserializable data";
+        }
+      })()
     };
     setLogs(prevLogs => [newLog, ...prevLogs.slice(0, 99)]); // Keep last 100 logs
   }, []);
