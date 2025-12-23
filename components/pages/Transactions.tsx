@@ -35,6 +35,7 @@ const TransactionForm: React.FC<{
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [step, setStep] = useState(1);
+    const [isDateInputFocused, setIsDateInputFocused] = useState(false);
 
     const isScannedFlow = useMemo(() => {
       // FIX: Cast to 'unknown' first to resolve unsafe type conversion error.
@@ -138,7 +139,15 @@ const TransactionForm: React.FC<{
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
                 <label htmlFor="date" className="block text-sm font-medium text-gray-600">Data</label>
-                <input type="date" id="date" value={date} onChange={(e) => setDate(e.target.value)} className={`mt-1 w-full px-3 py-2 border ${errors.date ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`} />
+                <input
+                    type={isDateInputFocused ? 'date' : 'text'}
+                    id="date"
+                    value={isDateInputFocused ? date : (date ? formatDate(date) : '')}
+                    onFocus={() => setIsDateInputFocused(true)}
+                    onBlur={() => setIsDateInputFocused(false)}
+                    onChange={(e) => setDate(e.target.value)}
+                    className={`mt-1 w-full px-3 py-2 border ${errors.date ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                />
             </div>
             <div>
                 <label htmlFor="value" className="block text-sm font-medium text-gray-600">Valor</label>
@@ -155,18 +164,7 @@ const TransactionForm: React.FC<{
                 // Multi-step flow for scanned receipts
                 <div className="space-y-4">
                     {step === 1 && (
-                        <>
-                            <div className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded-r-lg">
-                                <div className="flex">
-                                    <div className="flex-shrink-0"><Info className="h-5 w-5 text-blue-500 mt-0.5" /></div>
-                                    <div className="ml-3">
-                                        <p className="text-sm font-medium text-blue-800">Recibo Digitalizado</p>
-                                        <p className="text-sm text-blue-700">Confira os dados extraídos pela IA e ajuste se necessário.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            {formFields}
-                        </>
+                        formFields
                     )}
                     {step === 2 && (
                          <div className="space-y-4">

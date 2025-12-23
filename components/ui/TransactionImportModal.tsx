@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useMemo } from 'react';
 import Modal from './Modal';
 import { useAppData } from '../../hooks/useAppData';
@@ -80,139 +81,138 @@ const TransactionImportModal: React.FC<{
         onClose();
     }, [resetState, onClose]);
 
-    const handleFileSelect = useCallback(async (selectedFile: File) => {
+    const handleFileSelect = useCallback((selectedFile: File) => {
         if (!selectedFile) return;
+
         setIsLoading(true);
         setError(null);
         setParsedTransactions([]);
         setFile(selectedFile);
         setProgress(0);
 
-        try {
-            const data = await selectedFile.arrayBuffer();
-            const workbook = window.XLSX.read(data, { type: 'buffer' });
-            const sheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[sheetName];
-            const json: any[][] = window.XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true });
+        // Defer heavy processing to the next tick of the event loop.
+        // This allows the UI to update and show the loading spinner before the main thread is blocked.
+        setTimeout(async () => {
+            try {
+                const data = await selectedFile.arrayBuffer();
+                const workbook = window.XLSX.read(data, { type: 'buffer' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json: any[][] = window.XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true });
 
-            if (json.length < 2) throw new Error('A planilha está vazia.');
-            
-            const headerRow = json[0].map(h => normalizeHeader(String(h)));
-            const requiredHeaders = ['data', 'descricao', 'categoria', 'valor'];
-            const headerIndices: { [key: string]: number } = {};
-            
-            requiredHeaders.forEach(reqHeader => {
-                const index = headerRow.findIndex(h => h === reqHeader);
-                if(index === -1) throw new Error(`Coluna obrigatória "${reqHeader}" não encontrada no cabeçalho da planilha.`);
-                headerIndices[reqHeader] = index;
-            });
-            
-            // Fix: Explicitly type categoryMap to Map<string, Category> to avoid 'unknown' type issues
-            const categoryMap = new Map<string, Category>(categories.map(c => [c.name.toLowerCase(), c]));
-            const processed: ParsedTransaction[] = [];
-            const rows = json.slice(1);
-            const totalRows = rows.length;
+                if (json.length < 2) throw new Error('A planilha está vazia.');
+                
+                const headerRow = json[0].map(h => normalizeHeader(String(h)));
+                const requiredHeaders = ['data', 'descricao', 'categoria', 'valor'];
+                const headerIndices: { [key: string]: number } = {};
+                
+                requiredHeaders.forEach(reqHeader => {
+                    const index = headerRow.findIndex(h => h === reqHeader);
+                    if(index === -1) throw new Error(`Coluna obrigatória "${reqHeader}" não encontrada no cabeçalho da planilha.`);
+                    headerIndices[reqHeader] = index;
+                });
+                
+                const categoryMap = new Map<string, Category>(categories.map(c => [c.name.toLowerCase(), c]));
+                const processed: ParsedTransaction[] = [];
+                const rows = json.slice(1);
+                const totalRows = rows.length;
 
-            for (let i = 0; i < totalRows; i++) {
-                const row = rows[i];
-                if(row.every(cell => cell === null || cell === undefined || cell === '')) continue; // Skip empty rows
+                for (let i = 0; i < totalRows; i++) {
+                    const row = rows[i];
+                    if(row.every(cell => cell === null || cell === undefined || cell === '')) continue; // Skip empty rows
 
-                const dateVal = row[headerIndices.data];
-                const valueVal = row[headerIndices.valor];
-                const categoryVal = String(row[headerIndices.categoria] || '').trim();
-                const descriptionVal = String(row[headerIndices.descricao] || '').trim();
+                    const dateVal = row[headerIndices.data];
+                    const valueVal = row[headerIndices.valor];
+                    const categoryVal = String(row[headerIndices.categoria] || '').trim();
+                    const descriptionVal = String(row[headerIndices.descricao] || '').trim();
 
-                const result: Partial<ParsedTransaction> & { categoryName: string } = {
-                    status: 'new',
-                    description: descriptionVal,
-                    categoryName: categoryVal,
-                };
+                    const result: Partial<ParsedTransaction> & { categoryName: string } = {
+                        status: 'new',
+                        description: descriptionVal,
+                        categoryName: categoryVal,
+                    };
 
-                // --- Date Parsing (Handles DD/MM/AAAA strings and Excel serial numbers) ---
-                let parsedDate: Date | null = null;
-                if (typeof dateVal === 'number') {
-                    // Handle Excel's numeric date format.
-                    parsedDate = convertExcelSerialDate(dateVal);
-                } else {
-                    // Handle string date format.
-                    const dateStr = String(dateVal || '').trim();
-                    if (dateStr) {
-                        const parts = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-                        if (parts) {
-                            const day = parseInt(parts[1], 10);
-                            const month = parseInt(parts[2], 10) - 1; // Month is 0-indexed
-                            const year = parseInt(parts[3], 10);
-                            const date = new Date(Date.UTC(year, month, day));
-                            if (date.getUTCFullYear() === year && date.getUTCMonth() === month && date.getUTCDate() === day) {
-                                parsedDate = date;
+                    // --- Date Parsing (Handles DD/MM/AAAA strings and Excel serial numbers) ---
+                    let parsedDate: Date | null = null;
+                    if (typeof dateVal === 'number') {
+                        parsedDate = convertExcelSerialDate(dateVal);
+                    } else {
+                        const dateStr = String(dateVal || '').trim();
+                        if (dateStr) {
+                            const parts = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+                            if (parts) {
+                                const day = parseInt(parts[1], 10);
+                                const month = parseInt(parts[2], 10) - 1; // Month is 0-indexed
+                                const year = parseInt(parts[3], 10);
+                                const date = new Date(Date.UTC(year, month, day));
+                                if (date.getUTCFullYear() === year && date.getUTCMonth() === month && date.getUTCDate() === day) {
+                                    parsedDate = date;
+                                }
                             }
                         }
                     }
-                }
 
-                if (parsedDate) {
-                    result.date = parsedDate.toISOString().split('T')[0];
-                } else {
-                    result.status = 'invalid';
-                    result.message = 'Data inválida. Use DD/MM/AAAA.';
-                }
-                
-                // --- Value Parsing (Handles numbers and PT-BR currency strings) ---
-                let numValue: number;
-                if (typeof valueVal === 'number') {
-                    // Value is already a number (e.g., from a cell formatted as Currency/Number).
-                    numValue = valueVal;
-                } else {
-                    // Value is a string, needs PT-BR parsing.
-                    const valueStr = String(valueVal || '').trim();
-                    if (valueStr === '') {
-                        numValue = NaN;
-                    } else {
-                        // Handles "R$ 1.234,56" format
-                        const s = valueStr.replace(/R\$\s*/, '').trim();
-                        const standardized = s.replace(/\./g, '').replace(',', '.');
-                        numValue = parseFloat(standardized);
-                    }
-                }
-
-                if (typeof numValue === 'number' && !isNaN(numValue) && numValue !== 0) {
-                    result.value = Math.abs(numValue);
-                    result.nature = TransactionNature.DESPESA;
-                } else {
-                    result.status = 'invalid';
-                    result.message = (result.message || '') + ' Valor inválido ou zero.';
-                }
-                
-                // Validate Category
-                // Fix: Access properties of category now that it's properly typed
-                const category = categoryMap.get(categoryVal.toLowerCase());
-                if (category) {
-                    if (category.type === CategoryType.DESPESA) {
-                        result.categoryId = category.id;
+                    if (parsedDate) {
+                        result.date = parsedDate.toISOString().split('T')[0];
                     } else {
                         result.status = 'invalid';
-                        result.message = (result.message || '') + ` Categoria '${categoryVal}' é do tipo Receita.`;
+                        result.message = 'Data inválida. Use DD/MM/AAAA.';
                     }
-                } else {
-                    result.status = 'invalid';
-                    result.message = (result.message || '') + ` Categoria '${categoryVal}' não encontrada.`;
-                }
-                processed.push(result as ParsedTransaction);
+                    
+                    // --- Value Parsing (Handles numbers and PT-BR currency strings) ---
+                    let numValue: number;
+                    if (typeof valueVal === 'number') {
+                        numValue = valueVal;
+                    } else {
+                        const valueStr = String(valueVal || '').trim();
+                        if (valueStr === '') {
+                            numValue = NaN;
+                        } else {
+                            const s = valueStr.replace(/R\$\s*/, '').trim();
+                            const standardized = s.replace(/\./g, '').replace(',', '.');
+                            numValue = parseFloat(standardized);
+                        }
+                    }
 
-                const currentProgress = Math.round(((i + 1) / totalRows) * 100);
-                setProgress(currentProgress);
-                if (i % 20 === 0 || i === totalRows - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 0));
+                    if (typeof numValue === 'number' && !isNaN(numValue) && numValue !== 0) {
+                        result.value = Math.abs(numValue);
+                        result.nature = TransactionNature.DESPESA;
+                    } else {
+                        result.status = 'invalid';
+                        result.message = (result.message || '') + ' Valor inválido ou zero.';
+                    }
+                    
+                    const category = categoryMap.get(categoryVal.toLowerCase());
+                    if (category) {
+                        if (category.type === CategoryType.DESPESA) {
+                            result.categoryId = category.id;
+                        } else {
+                            result.status = 'invalid';
+                            result.message = (result.message || '') + ` Categoria '${categoryVal}' é do tipo Receita.`;
+                        }
+                    } else {
+                        result.status = 'invalid';
+                        result.message = (result.message || '') + ` Categoria '${categoryVal}' não encontrada.`;
+                    }
+                    processed.push(result as ParsedTransaction);
+
+                    // Update progress and yield to the main thread in chunks to prevent freezing.
+                    if (i % 50 === 0 || i === totalRows - 1) {
+                        const currentProgress = Math.round(((i + 1) / totalRows) * 100);
+                        setProgress(currentProgress);
+                        // Yield control back to the browser event loop
+                        await new Promise(resolve => setTimeout(resolve, 0)); 
+                    }
                 }
+                setParsedTransactions(processed);
+            } catch (err) {
+                console.error("Erro ao processar o arquivo:", err);
+                setError(err instanceof Error ? err.message : "Ocorreu um erro desconhecido.");
+                setFile(null);
+            } finally {
+                setIsLoading(false);
             }
-            setParsedTransactions(processed);
-        } catch (err) {
-            console.error("Erro ao processar o arquivo:", err);
-            setError(err instanceof Error ? err.message : "Ocorreu um erro desconhecido.");
-            setFile(null);
-        } finally {
-            setIsLoading(false);
-        }
+        }, 50); // A small delay is enough for the UI to update.
     }, [categories]);
 
     const handleImport = async () => {
@@ -268,7 +268,7 @@ const TransactionImportModal: React.FC<{
                     </div>
                 </div>
 
-                {isLoading ? (
+                {isLoading && file ? (
                     <div className="space-y-4 text-center p-8 bg-gray-50 rounded-lg">
                         <Loader2 className="mx-auto h-12 w-12 text-blue-600 animate-spin" />
                         <p className="font-semibold text-gray-700">Analisando sua planilha...</p>
@@ -352,7 +352,7 @@ const TransactionImportModal: React.FC<{
                             disabled={isLoading || transactionsToImportCount === 0}
                             className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold shadow disabled:bg-blue-300 disabled:cursor-not-allowed"
                         >
-                            {isLoading ? <Loader2 size={18} className="animate-spin" /> : 'Confirmar Importação'}
+                            {isLoading && !file ? <Loader2 size={18} className="animate-spin" /> : 'Confirmar Importação'}
                         </button>
                     </div>
                 </div>
