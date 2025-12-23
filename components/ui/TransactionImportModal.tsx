@@ -1,7 +1,8 @@
+
 import React, { useState, useCallback, useMemo } from 'react';
 import Modal from './Modal';
 import { useAppData } from '../../hooks/useAppData';
-import { Transaction, TransactionNature, CategoryType } from '../../types';
+import { Transaction, TransactionNature, CategoryType, Category } from '../../types';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { UploadCloud, FileText, AlertTriangle, BadgeCheck, BadgeX, Trash2, Loader2, Info, Banknote } from 'lucide-react';
 
@@ -106,7 +107,8 @@ const TransactionImportModal: React.FC<{
                 headerIndices[reqHeader] = index;
             });
             
-            const categoryMap = new Map(categories.map(c => [c.name.toLowerCase(), c]));
+            // Fix: Explicitly type categoryMap to Map<string, Category> to avoid 'unknown' type issues
+            const categoryMap = new Map<string, Category>(categories.map(c => [c.name.toLowerCase(), c]));
             const processed: ParsedTransaction[] = [];
             const rows = json.slice(1);
             const totalRows = rows.length;
@@ -182,6 +184,7 @@ const TransactionImportModal: React.FC<{
                 }
                 
                 // Validate Category
+                // Fix: Access properties of category now that it's properly typed
                 const category = categoryMap.get(categoryVal.toLowerCase());
                 if (category) {
                     if (category.type === CategoryType.DESPESA) {

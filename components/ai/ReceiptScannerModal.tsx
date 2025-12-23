@@ -3,8 +3,8 @@ import { GoogleGenAI, Type } from "@google/genai";
 import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { useLogger } from '../../hooks/useLogger';
-import { useAppData } from '../../hooks/useAppData';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
+import { GEMINI_API_KEY } from '../../supabase/client';
 
 interface ScannedData {
   value: number;
@@ -25,7 +25,6 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
   const [isLoading, setIsLoading] = useState(false);
   const [scanError, setScanError] = useState('');
   const log = useLogger();
-  const { apiKey } = useAppData();
 
   const resetState = () => {
     setSelectedFile(null);
@@ -71,21 +70,25 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       setScanError('Por favor, selecione uma imagem primeiro.');
       return;
     }
+    
+    // Validação inteligente para o desenvolvedor
+    if (GEMINI_API_KEY === "COLE_SUA_CHAVE_DE_API_AQUI") {
+      const devError = "PARA O DESENVOLVEDOR: A chave de API do Gemini não foi configurada. Insira sua chave no arquivo 'supabase/client.ts'.";
+      log.error(devError);
+      setScanError(devError);
+      return;
+    }
+
     setIsLoading(true);
     setScanError('');
 
     log.info('Iniciando digitalização do recibo...');
     try {
-      if (!apiKey) {
-        log.error("A chave de API do Gemini não está configurada nas configurações do app.");
-        throw new Error("API_KEY_NOT_CONFIGURED");
-      }
-      
       log.info('Comprimindo e convertendo imagem para base64...');
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
       log.info('Imagem processada. Enviando para a IA...');
       
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
       const imagePart = {
         inlineData: {
@@ -93,9 +96,6 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
           data: base64Image,
         },
       };
-
-      // --- Chamadas sequenciais para a IA para maior compatibilidade ---
-      log.info('Iniciando chamadas sequenciais para a IA para maior compatibilidade (Safari).');
 
       // 1. Extrair dados
       log.info('Executando extração de dados...');
@@ -116,71 +116,35 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
           }
         }
       });
-      log.info('Extração de dados concluída.');
       
       // 2. Limpar a imagem
       log.info('Executando limpeza da imagem...');
-      const cleaningPrompt = `Aja como um scanner de documentos profissional e realize um pós-processamento completo na imagem deste recibo. O objetivo é gerar um documento limpo, nítido e perfeitamente legível, ideal para arquivamento e prestação de contas. Execute as seguintes ações:
-1. **Detecção e Alinhamento:** Detecte as bordas do documento, corrija a perspectiva e qualquer ângulo torto, e centralize o recibo na imagem.
-2. **Limpeza de Fundo:** Remova completamente o fundo original, substituindo-o por um fundo perfeitamente branco e uniforme.
-3. **Ajuste de Qualidade:** Aumente o contraste e a nitidez para garantir que o texto seja escuro e totalmente legível.
-4. **Remoção de Imperfeições:** Elimine quaisquer sombras, reflexos, borrões ou outras distorções visuais.
-O resultado final deve ser idêntico a um documento digitalizado por um scanner de alta qualidade.`;
+      const cleaningPrompt = `Aja como um scanner de documentos profissional e realize um pós-processamento completo na imagem deste recibo. O resultado final deve ser idêntico a um documento digitalizado por um scanner de alta qualidade.`;
       const imageResponse = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: { parts: [{ text: cleaningPrompt }, imagePart] }
       });
-      log.info('Limpeza da imagem concluída. Ambas as respostas da IA foram recebidas.');
 
-      // Processando os resultados
-      if (!dataResponse.text) {
-        throw new Error("A IA não retornou dados de texto para extração.");
-      }
+      if (!dataResponse.text) throw new Error("A IA não retornou dados.");
       const extractedData = JSON.parse(dataResponse.text.trim());
-      log.info('Dados extraídos:', extractedData);
 
       const imagePartResponse = imageResponse.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
-      let cleanedImageBase64: string;
-      if (imagePartResponse?.inlineData?.data) {
-        cleanedImageBase64 = imagePartResponse.inlineData.data;
-        log.info('Imagem limpa e processada.');
-      } else {
-        cleanedImageBase64 = base64Image;
-        log.warn('Não foi possível obter imagem limpa da IA, usando a original otimizada.');
-      }
+      const cleanedImageBase64 = imagePartResponse?.inlineData?.data || base64Image;
 
-      // Validando e combinando os dados
       if (!/^\d{4}-\d{2}-\d{2}$/.test(extractedData.date)) {
-        log.warn("Formato de data inválido da IA, usando data de hoje.", { date: extractedData.date });
         extractedData.date = new Date().toISOString().split('T')[0];
       }
       
-      const finalData = {
-        ...extractedData,
-        scannedImage: cleanedImageBase64,
-      };
-
-      log.info('Digitalização concluída com sucesso.', { description: finalData.description, value: finalData.value, date: finalData.date });
-      onScanComplete(finalData);
+      onScanComplete({ ...extractedData, scannedImage: cleanedImageBase64 });
       handleClose();
 
     } catch (error) {
-      log.error("Ocorreu um erro detalhado ao digitalizar o recibo", { error });
-
-      let userMessage = 'A IA não conseguiu processar a imagem. Verifique o console para detalhes técnicos e tente novamente.';
-      if (error instanceof Error) {
-        if (error.message === "API_KEY_NOT_CONFIGURED") {
-          userMessage = "Atenção: A chave de API do Gemini precisa ser configurada nas Configurações do aplicativo.";
-        } else if (error.message.includes('JSON')) {
-          userMessage = 'A IA retornou um formato inválido. Tente uma imagem mais nítida.';
-        } else if (error.message.toLowerCase().includes('api key')) {
-          userMessage = 'Erro de autenticação com a API. Verifique se a chave de API está correta e tente novamente.';
-        } else {
-          const specificError = (error as any).cause?.toString() || error.toString();
-          userMessage = `Falha na comunicação com a IA. Detalhes: ${specificError}.`;
-        }
+      log.error("Erro na digitalização:", error);
+      if (error instanceof Error && error.message.toLowerCase().includes('api key not valid')) {
+          setScanError("PARA O DESENVOLVEDOR: A chave de API do Gemini configurada em 'supabase/client.ts' é inválida.");
+      } else {
+          setScanError('Falha ao processar o recibo. Verifique a qualidade da imagem e tente novamente.');
       }
-      setScanError(userMessage);
     } finally {
       setIsLoading(false);
     }
@@ -191,7 +155,7 @@ O resultado final deve ser idêntico a um documento digitalizado por um scanner 
       <div className="space-y-4">
         {previewUrl ? (
           <div className="text-center">
-            <img src={previewUrl} alt="Pré-visualização do recibo" className="max-h-48 w-auto inline-block rounded-md border" />
+            <img src={previewUrl} alt="Pré-visualização" className="max-h-48 w-auto inline-block rounded-md border" />
           </div>
         ) : (
           <div
@@ -201,8 +165,7 @@ O resultado final deve ser idêntico a um documento digitalizado por um scanner 
             onClick={() => document.getElementById('file-upload')?.click()}
           >
             <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
-            <p className="mt-2 text-sm text-gray-600">Arraste e solte o recibo aqui, ou clique para selecionar</p>
-            <p className="text-xs text-gray-500">PNG, JPG ou WEBP</p>
+            <p className="mt-2 text-sm text-gray-600">Arraste ou selecione o recibo</p>
             <input id="file-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </div>
         )}
@@ -215,31 +178,14 @@ O resultado final deve ser idêntico a um documento digitalizado por um scanner 
         )}
 
         <div className="flex justify-end gap-3 pt-4">
+            <button onClick={handleClose} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md">Cancelar</button>
             <button
-                type="button"
-                onClick={handleClose}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-                disabled={isLoading}
-            >
-                Cancelar
-            </button>
-            <button
-                type="button"
                 onClick={handleScan}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow disabled:bg-blue-300 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold shadow disabled:bg-blue-300"
                 disabled={!selectedFile || isLoading}
             >
-                {isLoading ? (
-                    <>
-                        <Loader2 size={20} className="animate-spin" />
-                        Analisando...
-                    </>
-                ) : (
-                    <>
-                        <ScanLine size={20} />
-                        Analisar Recibo
-                    </>
-                )}
+                {isLoading ? <Loader2 size={20} className="animate-spin" /> : <ScanLine size={20} />}
+                {isLoading ? 'Analisando...' : 'Analisar Recibo'}
             </button>
         </div>
       </div>

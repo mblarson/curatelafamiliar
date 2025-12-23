@@ -3,8 +3,8 @@ import { GoogleGenAI } from "@google/genai";
 import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { useLogger } from '../../hooks/useLogger';
-import { useAppData } from '../../hooks/useAppData';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
+import { GEMINI_API_KEY } from '../../supabase/client';
 
 interface DocumentScannerModalProps {
   isOpen: boolean;
@@ -18,7 +18,6 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
   const [isLoading, setIsLoading] = useState(false);
   const [scanError, setScanError] = useState('');
   const log = useLogger();
-  const { apiKey } = useAppData();
 
   const resetState = () => {
     setSelectedFile(null);
@@ -62,86 +61,42 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
       setScanError('Por favor, selecione uma imagem primeiro.');
       return;
     }
+
+    // Validação inteligente para o desenvolvedor
+    if (GEMINI_API_KEY === "COLE_SUA_CHAVE_DE_API_AQUI") {
+      const devError = "PARA O DESENVOLVEDOR: A chave de API do Gemini não foi configurada. Insira sua chave no arquivo 'supabase/client.ts'.";
+      log.error(devError);
+      setScanError(devError);
+      return;
+    }
+
     setIsLoading(true);
     setScanError('');
 
-    log.info('Iniciando digitalização de documento...');
     try {
-      if (!apiKey) {
-        log.error("A chave de API do Gemini não está configurada nas configurações do app.");
-        throw new Error("API_KEY_NOT_CONFIGURED");
-      }
-      
-      log.info('Comprimindo imagem...');
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
-      log.info('Imagem comprimida.');
+      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
-      const ai = new GoogleGenAI({ apiKey });
+      const cleaningPrompt = `Aja como um scanner de documentos profissional. Melhore a nitidez, brilho e contraste deste documento para arquivamento digital.`;
 
-      const imagePart = {
-        inlineData: {
-          mimeType,
-          data: base64Image,
-        },
-      };
-
-      const requestPayload = {
-        model: 'gemini-2.5-flash-image',
-      };
-      log.info('Enviando requisição para a IA (Documento)...', requestPayload);
-      
-      const cleaningPrompt = `Aja como um scanner de documentos profissional e realize um pós-processamento completo na imagem deste documento. O objetivo é gerar um documento limpo, nítido e perfeitamente legível, ideal para arquivamento e prestação de contas. Execute as seguintes ações:
-1. **Detecção e Alinhamento:** Detecte as bordas do documento, corrija a perspectiva e qualquer ângulo torto, e centralize o documento na imagem.
-2. **Limpeza de Fundo:** Remova completamente o fundo original, substituindo-o por um fundo perfeitamente branco e uniforme.
-3. **Ajuste de Qualidade:** Aumente o contraste e a nitidez para garantir que o texto seja escuro e totalmente legível.
-4. **Remoção de Imperfeições:** Elimine quaisquer sombras, reflexos, borrões ou outras distorções visuais.
-O resultado final deve ser idêntico a um documento digitalizado por um scanner de alta qualidade.`;
-
-      const apiCallPromise = ai.models.generateContent({
+      const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash-image',
-          contents: {
-              parts: [
-                  { text: cleaningPrompt },
-                  imagePart
-              ]
-          }
+          contents: { parts: [{ text: cleaningPrompt }, { inlineData: { mimeType, data: base64Image } }] }
       });
-      
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('API_TIMEOUT')), 90000) // 90 seconds
-      );
 
-      const response: any = await Promise.race([apiCallPromise, timeoutPromise]);
-
-      log.info('Resposta da IA (Documento) recebida.', response);
-      let scannedImage = '';
       const imagePartResponse = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
-      if (imagePartResponse && imagePartResponse.inlineData) {
-          scannedImage = imagePartResponse.inlineData.data;
-      } else {
-          log.warn("Não foi possível obter uma imagem digitalizada, usando a original (já comprimida).", { response });
-          scannedImage = base64Image;
-      }
+      const scannedImage = imagePartResponse?.inlineData?.data || base64Image;
 
-      log.info('Digitalização de documento concluída com sucesso.');
       onScanComplete(scannedImage);
       handleClose();
 
     } catch (error) {
-      log.error("Ocorreu um erro detalhado ao digitalizar o documento", { error });
-
-      let userMessage = 'Não foi possível processar o documento. Verifique o console para detalhes técnicos.';
-      if (error instanceof Error) {
-          if (error.message === "API_KEY_NOT_CONFIGURED") {
-            userMessage = "Atenção: A chave de API do Gemini precisa ser configurada nas Configurações do aplicativo.";
-          } else if (error.message === 'API_TIMEOUT') {
-              userMessage = 'A análise demorou muito (timeout). Tente novamente com uma imagem menor.';
-          } else {
-              const specificError = (error as any).cause?.toString() || error.toString();
-              userMessage = `Falha na comunicação com a IA. Detalhes: ${specificError}.`;
-          }
+      log.error("Erro na digitalização:", error);
+      if (error instanceof Error && error.message.toLowerCase().includes('api key not valid')) {
+        setScanError("PARA O DESENVOLVEDOR: A chave de API do Gemini configurada em 'supabase/client.ts' é inválida.");
+      } else {
+        setScanError('Não foi possível processar o documento.');
       }
-      setScanError(userMessage);
     } finally {
       setIsLoading(false);
     }
@@ -152,7 +107,7 @@ O resultado final deve ser idêntico a um documento digitalizado por um scanner 
       <div className="space-y-4">
         {previewUrl ? (
           <div className="text-center">
-            <img src={previewUrl} alt="Pré-visualização do documento" className="max-h-60 w-auto inline-block rounded-md border" />
+            <img src={previewUrl} alt="Pré-visualização" className="max-h-60 w-auto inline-block rounded-md border" />
           </div>
         ) : (
           <div
@@ -162,9 +117,7 @@ O resultado final deve ser idêntico a um documento digitalizado por um scanner 
             onClick={() => document.getElementById('doc-file-upload')?.click()}
           >
             <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
-            <p className="mt-2 text-sm text-gray-600">Arraste e solte o documento aqui, ou clique para selecionar</p>
-            <p className="text-xs text-gray-500">PNG, JPG ou WEBP</p>
-            <p className="text-xs text-gray-400 mt-2">Imagens grandes serão otimizadas para acelerar o processo.</p>
+            <p className="mt-2 text-sm text-gray-600">Arraste ou selecione o documento</p>
             <input id="doc-file-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </div>
         )}
@@ -177,31 +130,14 @@ O resultado final deve ser idêntico a um documento digitalizado por um scanner 
         )}
 
         <div className="flex justify-end gap-3 pt-4">
+            <button onClick={handleClose} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md">Cancelar</button>
             <button
-                type="button"
-                onClick={handleClose}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-                disabled={isLoading}
-            >
-                Cancelar
-            </button>
-            <button
-                type="button"
                 onClick={handleScan}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow disabled:bg-blue-300 disabled:cursor-not-allowed"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold shadow disabled:bg-blue-300"
                 disabled={!selectedFile || isLoading}
             >
-                {isLoading ? (
-                    <>
-                        <Loader2 size={20} className="animate-spin" />
-                        Digitalizando...
-                    </>
-                ) : (
-                    <>
-                        <ScanLine size={20} />
-                        Digitalizar
-                    </>
-                )}
+                {isLoading ? <Loader2 size={20} className="animate-spin" /> : <ScanLine size={20} />}
+                {isLoading ? 'Digitalizando...' : 'Digitalizar'}
             </button>
         </div>
       </div>
