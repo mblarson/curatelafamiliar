@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { useLogger } from '../../hooks/useLogger';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
+// FIX: Removed import of hardcoded API key.
 
 interface ScannedData {
   value: number;
@@ -70,8 +71,7 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       return;
     }
     
-    // FIX: This comparison was causing a TypeScript error and is against Gemini API guidelines.
-    // The API key is now handled by environment variables.
+    // FIX: Removed check for placeholder API key, assuming process.env.API_KEY is set.
 
     setIsLoading(true);
     setScanError('');
@@ -82,7 +82,7 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
       log.info('Imagem processada. Enviando para a IA...');
       
-      // FIX: Use API key from environment variable as per guidelines.
+      // FIX: Initialize GoogleGenAI with API key from environment variable.
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
       const imagePart = {
@@ -92,8 +92,7 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
         },
       };
 
-      // --- Chamadas sequenciais para a IA para maior compatibilidade ---
-      log.info('Iniciando chamadas sequenciais para a IA para maior compatibilidade (Safari).');
+      log.info('Iniciando chamadas sequenciais para a IA para maior compatibilidade.');
 
       // 1. Extrair dados
       log.info('Executando extração de dados...');
@@ -111,56 +110,27 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
         model: 'gemini-2.5-flash-image',
         contents: { parts: [{ text: cleaningPrompt }, imagePart] }
       });
-      log.info('Limpeza da imagem concluída. Ambas as respostas da IA foram recebidas.');
+      log.info('Limpeza da imagem concluída.');
 
-      // Processando os resultados
       if (!dataResponse.text) {
         throw new Error("A IA não retornou dados de texto para extração.");
       }
       const extractedData = JSON.parse(dataResponse.text.trim());
-      log.info('Dados extraídos:', extractedData);
 
       const imagePartResponse = imageResponse.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
-      let cleanedImageBase64: string;
-      if (imagePartResponse?.inlineData?.data) {
-        cleanedImageBase64 = imagePartResponse.inlineData.data;
-        log.info('Imagem limpa e processada.');
-      } else {
-        cleanedImageBase64 = base64Image;
-        log.warn('Não foi possível obter imagem limpa da IA, usando a original otimizada.');
-      }
+      const cleanedImageBase64 = imagePartResponse?.inlineData?.data || base64Image;
 
-      // Validando e combinando os dados
       if (!/^\d{4}-\d{2}-\d{2}$/.test(extractedData.date)) {
-        log.warn("Formato de data inválido da IA, usando data de hoje.", { date: extractedData.date });
         extractedData.date = new Date().toISOString().split('T')[0];
       }
       
-      const finalData = {
-        ...extractedData,
-        scannedImage: cleanedImageBase64,
-      };
-
-      log.info('Digitalização concluída com sucesso.', { description: finalData.description, value: finalData.value, date: finalData.date });
-      onScanComplete(finalData);
+      onScanComplete({ ...extractedData, scannedImage: cleanedImageBase64 });
       handleClose();
 
     } catch (error) {
-      log.error("Ocorreu um erro detalhado ao digitalizar o recibo", { error });
-
-      let userMessage = 'A IA não conseguiu processar a imagem. Verifique o console para detalhes técnicos e tente novamente.';
-      if (error instanceof Error) {
-        // FIX: Updated error message to reflect API key coming from environment variables.
-        if (error.message.toLowerCase().includes('api key not valid')) {
-            userMessage = "A chave de API fornecida é inválida. Verifique a configuração do ambiente.";
-        } else if (error.message.includes('JSON')) {
-            userMessage = 'A IA retornou um formato inválido. Tente uma imagem mais nítida.';
-        } else {
-            const specificError = (error as any).cause?.toString() || error.toString();
-            userMessage = `Falha na comunicação com a IA. Detalhes: ${specificError}.`;
-        }
-      }
-      setScanError(userMessage);
+      log.error("Erro na digitalização:", error);
+      // FIX: Removed developer-specific error message about invalid API key.
+      setScanError('Falha ao processar o recibo. Verifique a qualidade da imagem e tente novamente.');
     } finally {
       setIsLoading(false);
     }

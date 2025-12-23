@@ -4,6 +4,7 @@ import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { useLogger } from '../../hooks/useLogger';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
+// FIX: Removed import of hardcoded API key.
 
 interface DocumentScannerModalProps {
   isOpen: boolean;
@@ -61,15 +62,14 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
       return;
     }
 
-    // FIX: This comparison was causing a TypeScript error and is against Gemini API guidelines.
-    // The API key is now handled by environment variables.
+    // FIX: Removed check for placeholder API key, assuming process.env.API_KEY is set.
 
     setIsLoading(true);
     setScanError('');
 
     try {
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
-      // FIX: Use API key from environment variable as per guidelines.
+      // FIX: Initialize GoogleGenAI with API key from environment variable.
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
       const cleaningPrompt = `Aja como um scanner de documentos profissional. Melhore a nitidez, brilho e contraste deste documento para arquivamento digital.`;
@@ -87,12 +87,8 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
 
     } catch (error) {
       log.error("Erro na digitalização:", error);
-      // FIX: Updated error message to reflect API key coming from environment variables.
-      if (error instanceof Error && error.message.toLowerCase().includes('api key not valid')) {
-        setScanError("A chave de API fornecida é inválida. Verifique a configuração do ambiente.");
-      } else {
-        setScanError('Não foi possível processar o documento.');
-      }
+      // FIX: Removed developer-specific error message about invalid API key.
+      setScanError('Não foi possível processar o documento.');
     } finally {
       setIsLoading(false);
     }
