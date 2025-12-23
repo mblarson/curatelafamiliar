@@ -1,10 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { GoogleGenAI } from "@google/genai";
 import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { useLogger } from '../../hooks/useLogger';
+import { supabase } from '../../supabase/client';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
-import { GEMINI_API_KEY } from '../../supabase/client';
 
 interface ScannedData {
   value: number;
@@ -71,79 +70,33 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       return;
     }
     
-    if (GEMINI_API_KEY === "COLE_SUA_CHAVE_DE_API_AQUI") {
-      const devError = "PARA O DESENVOLVEDOR: A chave de API do Gemini não foi configurada. Insira sua chave no arquivo 'supabase/client.ts'.";
-      log.error(devError);
-      setScanError(devError);
-      return;
-    }
-
     setIsLoading(true);
     setScanError('');
+    log.info('Iniciando digitalização segura via Edge Function...');
 
-    log.info('Iniciando digitalização do recibo...');
     try {
-      log.info('Comprimindo e convertendo imagem para base64...');
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
-      log.info('Imagem processada. Enviando para a IA...');
-      
-      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+      log.info('Imagem processada. Invocando a função "scan-receipt"...');
 
-      const imagePart = {
-        inlineData: {
-          mimeType,
-          data: base64Image,
-        },
-      };
-
-      log.info('Iniciando chamadas sequenciais para a IA para maior compatibilidade.');
-
-      // 1. Extrair dados
-      log.info('Executando extração de dados...');
-      const dataPrompt = `Analise a imagem do recibo e extraia o valor total da transação (use ponto como separador decimal), a data (no formato AAAA-MM-DD) e o nome do estabelecimento ou uma breve descrição da compra. Se a data não for encontrada, use a data de hoje. Se o valor não for encontrado, use 0. Responda APENAS com um objeto JSON no formato {"value": <number>, "date": "<string>", "description": "<string>"}. Não inclua markdown (como \`\`\`json).`;
-      const dataResponse = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: { parts: [{ text: dataPrompt }, imagePart] },
+      const { data, error } = await supabase.functions.invoke('scan-receipt', {
+        body: { mimeType, image: base64Image },
       });
-      log.info('Extração de dados concluída.');
-      
-      // 2. Limpar a imagem
-      log.info('Executando limpeza da imagem...');
-      const cleaningPrompt = `Aja como um scanner de documentos profissional e realize um pós-processamento completo na imagem deste recibo. O resultado final deve ser idêntico a um documento digitalizado por um scanner de alta qualidade.`;
-      const imageResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: { parts: [{ text: cleaningPrompt }, imagePart] }
-      });
-      log.info('Limpeza da imagem concluída.');
 
-      if (!dataResponse.text) {
-        throw new Error("A IA não retornou dados de texto para extração.");
-      }
-      const extractedData = JSON.parse(dataResponse.text.trim());
-
-      const imagePartResponse = imageResponse.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
-      const cleanedImageBase64 = imagePartResponse?.inlineData?.data || base64Image;
-
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(extractedData.date)) {
-        extractedData.date = new Date().toISOString().split('T')[0];
+      if (error) {
+        throw new Error(`Function error: ${error.message}`);
       }
       
-      onScanComplete({ ...extractedData, scannedImage: cleanedImageBase64 });
+      if (!data.value || !data.date || !data.description || !data.scannedImage) {
+        log.error("Resposta da Edge Function incompleta:", data);
+        throw new Error(data.error || 'A IA não conseguiu extrair todos os dados necessários do recibo.');
+      }
+
+      onScanComplete(data);
       handleClose();
 
     } catch (error) {
       log.error("Erro detalhado na digitalização:", error);
-      let userMessage = 'Falha ao processar o recibo. Verifique a qualidade da imagem e tente novamente.';
-      if (error instanceof Error) {
-        const message = error.message.toLowerCase();
-        if (message.includes('api key not valid')) {
-            userMessage = "PARA O DESENVOLVEDOR: A chave de API do Gemini configurada em 'supabase/client.ts' é inválida.";
-        } else if (message.includes('json')) {
-            userMessage = 'A IA retornou um formato inválido. Tente uma imagem mais nítida ou de um recibo diferente.';
-        } else if (message.includes('quota')) {
-            userMessage = 'A cota de uso da API foi excedida. Verifique sua conta do Google AI Studio.';
-        }
-      }
+      const userMessage = error instanceof Error ? error.message : 'Falha ao processar o recibo. Verifique a qualidade da imagem e tente novamente.';
       setScanError(userMessage);
     } finally {
       setIsLoading(false);

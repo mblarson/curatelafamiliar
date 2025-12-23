@@ -1,10 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { GoogleGenAI } from "@google/genai";
 import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { useLogger } from '../../hooks/useLogger';
+import { supabase } from '../../supabase/client';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
-import { GEMINI_API_KEY } from '../../supabase/client';
 
 interface DocumentScannerModalProps {
   isOpen: boolean;
@@ -62,40 +61,34 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
       return;
     }
 
-    if (GEMINI_API_KEY === "COLE_SUA_CHAVE_DE_API_AQUI") {
-      const devError = "PARA O DESENVOLVEDOR: A chave de API do Gemini não foi configurada. Insira sua chave no arquivo 'supabase/client.ts'.";
-      log.error(devError);
-      setScanError(devError);
-      return;
-    }
-
     setIsLoading(true);
     setScanError('');
+    log.info('Iniciando digitalização segura de documento via Edge Function...');
 
     try {
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
-      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+      log.info('Imagem processada. Invocando a função "scan-document"...');
 
-      const cleaningPrompt = `Aja como um scanner de documentos profissional. Melhore a nitidez, brilho e contraste deste documento para arquivamento digital.`;
-
-      const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash-image',
-          contents: { parts: [{ text: cleaningPrompt }, { inlineData: { mimeType, data: base64Image } }] }
+      const { data, error } = await supabase.functions.invoke('scan-document', {
+        body: { mimeType, image: base64Image },
       });
+      
+      if (error) {
+        throw new Error(`Function error: ${error.message}`);
+      }
 
-      const imagePartResponse = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
-      const scannedImage = imagePartResponse?.inlineData?.data || base64Image;
+      if (!data.scannedImage) {
+        log.error("Resposta da Edge Function incompleta:", data);
+        throw new Error(data.error || 'A IA não conseguiu processar o documento.');
+      }
 
-      onScanComplete(scannedImage);
+      onScanComplete(data.scannedImage);
       handleClose();
 
     } catch (error) {
       log.error("Erro na digitalização:", error);
-      if (error instanceof Error && error.message.toLowerCase().includes('api key not valid')) {
-        setScanError("PARA O DESENVOLVEDOR: A chave de API do Gemini configurada em 'supabase/client.ts' é inválida.");
-      } else {
-        setScanError('Não foi possível processar o documento.');
-      }
+      const userMessage = error instanceof Error ? error.message : 'Não foi possível processar o documento.';
+      setScanError(userMessage);
     } finally {
       setIsLoading(false);
     }
