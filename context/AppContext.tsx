@@ -191,7 +191,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     }
     const { error } = await supabase.from('transactions').delete().eq('id', id);
-    if (error) return console.error("Error deleting transaction:", error);
+    if (error) {
+        console.error("Error deleting transaction:", error);
+        // Lança o erro para que a UI possa reagir (ex: mostrar um alerta)
+        throw error;
+    }
     setTransactions(prev => prev.filter(t => t.id !== id));
   };
   

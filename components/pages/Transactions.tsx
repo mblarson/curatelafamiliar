@@ -9,7 +9,7 @@ import ViewAttachmentModal from '../ui/ViewAttachmentModal';
 import CurrencyInput from '../ui/CurrencyInput';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { generateTransactionsPDF } from '../../utils/pdfGenerator';
-import { Plus, Edit, Trash2, Download, Filter, Wallet, ScanLine, Paperclip, XCircle, Upload, ArrowRight, Info } from 'lucide-react';
+import { Plus, Trash2, Download, Filter, Wallet, ScanLine, Paperclip, Upload, ArrowRight, Edit } from 'lucide-react';
 
 interface ScannedData {
   value: number;
@@ -210,6 +210,7 @@ const TransactionForm: React.FC<{
 const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_card', title: string }> = ({ transactionType, title }) => {
     const { transactions, categories, accounts, addTransaction, updateTransaction, deleteTransaction, getAccountById } = useAppData();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isActionModalOpen, setIsActionModalOpen] = useState(false);
     const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -232,9 +233,19 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
         setTransactionToEdit(transaction || null);
         setIsModalOpen(true);
     };
+    
+    const handleRowClick = (transaction: Transaction) => {
+        setTransactionToEdit(transaction);
+        setIsActionModalOpen(true);
+    };
 
     const handleCloseModal = () => {
         setIsModalOpen(false);
+        setTransactionToEdit(null);
+    };
+
+    const handleCloseActionModal = () => {
+        setIsActionModalOpen(false);
         setTransactionToEdit(null);
     };
 
@@ -248,8 +259,13 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
     };
 
     const handleDelete = async (id: string) => {
-        if(window.confirm('Tem certeza que deseja remover este lançamento? O anexo também será removido permanentemente.')) {
+        // A confirmação do usuário agora é feita através do modal de ação (Editar/Excluir).
+        // Removemos o `window.confirm` para uma experiência de usuário mais fluida e adicionamos tratamento de erro.
+        try {
             await deleteTransaction(id);
+        } catch (error) {
+            console.error("Falha ao excluir a transação:", error);
+            alert("Não foi possível excluir a transação. Verifique o console para mais detalhes.");
         }
     };
     
@@ -366,16 +382,15 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
                                     <th className="p-4 text-sm font-semibold text-gray-500 uppercase tracking-wider">Descrição</th>
                                     <th className="p-4 text-sm font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Conta</th>
                                     <th className="p-4 text-sm font-semibold text-gray-500 uppercase tracking-wider text-right">Valor</th>
-                                    <th className="p-4 text-sm font-semibold text-gray-500 uppercase tracking-wider text-right">Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredTransactions.map(t => (
-                                    <tr key={t.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 transition-colors">
+                                    <tr key={t.id} onClick={() => handleRowClick(t)} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 transition-colors cursor-pointer">
                                         <td className="p-4">
                                             <div className="font-medium text-gray-800 flex items-center gap-2">
                                               {t.attachments && t.attachments.length > 0 && 
-                                                <button onClick={() => setViewingAttachment(t.attachments![0])} title="Ver anexo">
+                                                <button onClick={(e) => { e.stopPropagation(); setViewingAttachment(t.attachments![0]); }} title="Ver anexo">
                                                   <Paperclip className="w-4 h-4 text-blue-500 hover:text-blue-700" />
                                                 </button>
                                               }
@@ -385,12 +400,6 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
                                         </td>
                                         <td className="p-4 text-gray-600 hidden md:table-cell">{getAccountName(t.accountId)}</td>
                                         <td className={`p-4 font-semibold text-right ${t.nature === 'RECEITA' ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(t.value)}</td>
-                                        <td className="p-4">
-                                            <div className="flex justify-end gap-2">
-                                                <button onClick={() => handleOpenModal(t)} className="p-2 text-gray-400 hover:text-blue-600 rounded-full transition-colors"><Edit size={18} /></button>
-                                                <button onClick={() => handleDelete(t.id)} className="p-2 text-gray-400 hover:text-red-600 rounded-full transition-colors"><Trash2 size={18} /></button>
-                                            </div>
-                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -408,6 +417,42 @@ const Transactions: React.FC<{ transactionType: 'checking_account' | 'credit_car
             <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={transactionToEdit && 'id' in transactionToEdit ? 'Editar Lançamento' : 'Novo Lançamento'}>
                 <TransactionForm onSubmit={handleSubmit} onClose={handleCloseModal} transactionToEdit={transactionToEdit} transactionType={transactionType} />
             </Modal>
+            
+            {isActionModalOpen && transactionToEdit && (
+              <Modal
+                isOpen={isActionModalOpen}
+                onClose={handleCloseActionModal}
+                title="O que deseja fazer?"
+              >
+                <div className="space-y-4">
+                  <p className="text-gray-600 text-center">
+                    Lançamento: <span className="font-semibold">{transactionToEdit.description}</span>
+                  </p>
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={() => {
+                        handleCloseActionModal();
+                        handleOpenModal(transactionToEdit as Transaction);
+                      }}
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow transition-colors"
+                    >
+                      <Edit size={18} />
+                      Editar Lançamento
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleCloseActionModal();
+                        if (transactionToEdit.id) handleDelete(transactionToEdit.id);
+                      }}
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold shadow transition-colors"
+                    >
+                      <Trash2 size={18} />
+                      Excluir Lançamento
+                    </button>
+                  </div>
+                </div>
+              </Modal>
+            )}
 
             <ReceiptScannerModal
                 isOpen={isScannerOpen}
