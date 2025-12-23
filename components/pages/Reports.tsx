@@ -93,7 +93,6 @@ const Reports: React.FC = () => {
       
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Blue Card */}
         <div className="bg-blue-600 text-white p-6 rounded-2xl shadow-lg flex flex-col justify-between">
             <div>
                 <p className="font-medium opacity-80">Saldo Total Consolidado</p>
@@ -104,7 +103,6 @@ const Reports: React.FC = () => {
             </div>
         </div>
         
-        {/* White Cards */}
         <div className="bg-white p-6 rounded-2xl shadow-sm">
             <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-gray-500">Receitas do Mês</p>
@@ -141,7 +139,7 @@ const Reports: React.FC = () => {
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm">
            <h2 className="text-lg font-semibold text-gray-700 mb-4">Despesas por Categoria</h2>
             {expenseByCategoryData.length > 0 ? (
-                <div style={{ width: '100%', height: 350 }}>
+                <div style={{ width: '100%', height: 450 }}>
                     <ResponsiveContainer>
                         <PieChart>
                             <Pie data={expenseByCategoryData} dataKey="value" nameKey="name" cx="50%" cy="40%" outerRadius={80} fill="#8884d8" labelLine={false} stroke="none">
@@ -171,7 +169,6 @@ const Reports: React.FC = () => {
           </div>
         </div>
       </div>
-
     </div>
   );
 };

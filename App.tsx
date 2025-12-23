@@ -5,6 +5,7 @@ import Transactions from './components/pages/Transactions';
 import Reports from './components/pages/Reports';
 import Documents from './components/pages/Documents';
 import Console from './components/ui/Console';
+import AIChat from './components/ai/AIChat';
 import { useAppData } from './hooks/useAppData';
 import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPulse, Loader2, FileText } from 'lucide-react';
 
@@ -13,9 +14,9 @@ type Page = 'Dashboard' | 'Conta Bancária' | 'Categorias' | 'Conta Corrente' | 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('Dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { isLoading } = useAppData();
+  const { isLoading: isDataLoading } = useAppData();
 
-  if (isLoading) {
+  if (isDataLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -126,8 +127,9 @@ const App: React.FC = () => {
         ></div>
       )}
       
-      {/* Modals */}
+      {/* Modals & Global Components */}
       <Console />
+      <AIChat />
     </div>
   );
 };

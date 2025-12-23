@@ -129,7 +129,7 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
                 disabled={!selectedFile || isLoading}
             >
                 {isLoading ? <Loader2 size={20} className="animate-spin" /> : <ScanLine size={20} />}
-                {isLoading ? 'Digitalizando...' : 'Digitalizar'}
+                {isLoading ? 'IA está digitalizando...' : 'Digitalizar'}
             </button>
         </div>
       </div>

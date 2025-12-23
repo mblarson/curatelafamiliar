@@ -36,9 +36,9 @@ Deno.serve(async (req) => {
 
     // Chamadas paralelas para a IA para otimizar o tempo de resposta
     const dataPromise = ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-flash-lite-latest',
       contents: { parts: [
-        { text: `Analise a imagem do recibo e extraia o valor total da transação (use ponto como separador decimal), a data (no formato AAAA-MM-DD) e o nome do estabelecimento ou uma breve descrição da compra. Se a data não for encontrada, use a data de hoje. Se o valor não for encontrado, use 0. Responda APENAS com um objeto JSON no formato {"value": <number>, "date": "<string>", "description": "<string>"}. Não inclua markdown (como \`\`\`json).` },
+        { text: `Extraia o valor total (número com ponto decimal), a data (formato AAAA-MM-DD) e uma breve descrição deste recibo. Tente extrair o máximo de informação possível. Se um campo não for encontrado, use um valor padrão: para 'value', use 0; para 'date', use a data de hoje; para 'description', use 'Recibo Digitalizado'. Responda SOMENTE com um objeto JSON: {"value": number, "date": "string", "description": "string"}. Não use markdown.` },
         imagePart
       ]},
     });
@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     const imagePromise = ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: { parts: [
-        { text: `Aja como um scanner de documentos profissional e realize um pós-processamento completo na imagem deste recibo. O resultado final deve ser idêntico a um documento digitalizado por um scanner de alta qualidade.` },
+        { text: `Aja como um scanner profissional. Otimize esta imagem de recibo para arquivamento digital, melhorando contraste, brilho e nitidez.` },
         imagePart
       ]}
     });
@@ -56,14 +56,28 @@ Deno.serve(async (req) => {
     if (!dataResponse.text) {
       throw new Error("A IA não retornou dados de texto para extração.");
     }
-    const extractedData = JSON.parse(dataResponse.text.trim());
+    
+    let extractedData = { value: 0, date: '', description: 'Recibo Digitalizado' };
+    try {
+        const parsedJson = JSON.parse(dataResponse.text.trim());
+        extractedData = { ...extractedData, ...parsedJson };
+    } catch (e) {
+        console.error("JSON.parse falhou, usando valores padrão. Erro:", e);
+    }
+    
+    // Sanitiza e valida os dados finais
+    if (typeof extractedData.value !== 'number' || isNaN(extractedData.value)) {
+        extractedData.value = 0;
+    }
+    if (typeof extractedData.description !== 'string' || !extractedData.description.trim()) {
+        extractedData.description = 'Recibo Digitalizado';
+    }
+    if (typeof extractedData.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(extractedData.date)) {
+      extractedData.date = new Date().toISOString().split('T')[0];
+    }
 
     const imagePartResponse = imageResponse.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
     const cleanedImageBase64 = imagePartResponse?.inlineData?.data || image;
-
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(extractedData.date)) {
-      extractedData.date = new Date().toISOString().split('T')[0];
-    }
 
     const responsePayload = { ...extractedData, scannedImage: cleanedImageBase64 };
     

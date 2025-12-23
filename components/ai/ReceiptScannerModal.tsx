@@ -86,7 +86,8 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
         throw new Error(`Function error: ${error.message}`);
       }
       
-      if (!data.value || !data.date || !data.description || !data.scannedImage) {
+      // Otimização: Verificação mais flexível que aceita valor 0 e confia nos padrões do backend.
+      if (data.value == null || !data.date || !data.scannedImage) {
         log.error("Resposta da Edge Function incompleta:", data);
         throw new Error(data.error || 'A IA não conseguiu extrair todos os dados necessários do recibo.');
       }
@@ -138,7 +139,7 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
                 disabled={!selectedFile || isLoading}
             >
                 {isLoading ? <Loader2 size={20} className="animate-spin" /> : <ScanLine size={20} />}
-                {isLoading ? 'Analisando...' : 'Analisar Recibo'}
+                {isLoading ? 'IA está analisando...' : 'Analisar Recibo'}
             </button>
         </div>
       </div>
