@@ -4,7 +4,6 @@ import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { useLogger } from '../../hooks/useLogger';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
-import { GEMINI_API_KEY } from '../../supabase/client';
 
 interface DocumentScannerModalProps {
   isOpen: boolean;
@@ -62,20 +61,16 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
       return;
     }
 
-    // Validação inteligente para o desenvolvedor
-    if (GEMINI_API_KEY === "COLE_SUA_CHAVE_DE_API_AQUI") {
-      const devError = "PARA O DESENVOLVEDOR: A chave de API do Gemini não foi configurada. Insira sua chave no arquivo 'supabase/client.ts'.";
-      log.error(devError);
-      setScanError(devError);
-      return;
-    }
+    // FIX: This comparison was causing a TypeScript error and is against Gemini API guidelines.
+    // The API key is now handled by environment variables.
 
     setIsLoading(true);
     setScanError('');
 
     try {
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
-      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+      // FIX: Use API key from environment variable as per guidelines.
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
       const cleaningPrompt = `Aja como um scanner de documentos profissional. Melhore a nitidez, brilho e contraste deste documento para arquivamento digital.`;
 
@@ -92,8 +87,9 @@ const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({ isOpen, onC
 
     } catch (error) {
       log.error("Erro na digitalização:", error);
+      // FIX: Updated error message to reflect API key coming from environment variables.
       if (error instanceof Error && error.message.toLowerCase().includes('api key not valid')) {
-        setScanError("PARA O DESENVOLVEDOR: A chave de API do Gemini configurada em 'supabase/client.ts' é inválida.");
+        setScanError("A chave de API fornecida é inválida. Verifique a configuração do ambiente.");
       } else {
         setScanError('Não foi possível processar o documento.');
       }

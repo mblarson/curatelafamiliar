@@ -4,7 +4,6 @@ import Modal from '../ui/Modal';
 import { fileToBase64 } from '../../utils/imageUtils';
 import { useLogger } from '../../hooks/useLogger';
 import { UploadCloud, ScanLine, AlertCircle, Loader2 } from 'lucide-react';
-import { GEMINI_API_KEY } from '../../supabase/client';
 
 interface ScannedData {
   value: number;
@@ -71,13 +70,8 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       return;
     }
     
-    // Validação inteligente para o desenvolvedor
-    if (GEMINI_API_KEY === "COLE_SUA_CHAVE_DE_API_AQUI") {
-      const devError = "PARA O DESENVOLVEDOR: A chave de API do Gemini não foi configurada. Insira sua chave no arquivo 'supabase/client.ts'.";
-      log.error(devError);
-      setScanError(devError);
-      return;
-    }
+    // FIX: This comparison was causing a TypeScript error and is against Gemini API guidelines.
+    // The API key is now handled by environment variables.
 
     setIsLoading(true);
     setScanError('');
@@ -88,7 +82,8 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
       const { mimeType, data: base64Image } = await fileToBase64(selectedFile);
       log.info('Imagem processada. Enviando para a IA...');
       
-      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+      // FIX: Use API key from environment variable as per guidelines.
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
       const imagePart = {
         inlineData: {
@@ -97,25 +92,17 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
         },
       };
 
+      // --- Chamadas sequenciais para a IA para maior compatibilidade ---
+      log.info('Iniciando chamadas sequenciais para a IA para maior compatibilidade (Safari).');
+
       // 1. Extrair dados
       log.info('Executando extração de dados...');
-      const dataPrompt = `Analise a imagem do recibo e extraia o valor total da transação (use ponto como separador decimal), a data (no formato AAAA-MM-DD) e o nome do estabelecimento ou uma breve descrição da compra. Se a data não for encontrada, use a data de hoje. Se o valor não for encontrado, use 0.`;
+      const dataPrompt = `Analise a imagem do recibo e extraia o valor total da transação (use ponto como separador decimal), a data (no formato AAAA-MM-DD) e o nome do estabelecimento ou uma breve descrição da compra. Se a data não for encontrada, use a data de hoje. Se o valor não for encontrado, use 0. Responda APENAS com um objeto JSON no formato {"value": <number>, "date": "<string>", "description": "<string>"}. Não inclua markdown (como \`\`\`json).`;
       const dataResponse = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: { parts: [{ text: dataPrompt }, imagePart] },
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              value: { type: Type.NUMBER, description: 'Valor total da compra, use ponto como separador decimal.' },
-              date: { type: Type.STRING, description: 'Data da transação no formato AAAA-MM-DD.' },
-              description: { type: Type.STRING, description: 'Nome do estabelecimento ou descrição da compra.' },
-            },
-            required: ["value", "date", "description"]
-          }
-        }
       });
+      log.info('Extração de dados concluída.');
       
       // 2. Limpar a imagem
       log.info('Executando limpeza da imagem...');
@@ -124,27 +111,56 @@ const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({ isOpen, onClo
         model: 'gemini-2.5-flash-image',
         contents: { parts: [{ text: cleaningPrompt }, imagePart] }
       });
+      log.info('Limpeza da imagem concluída. Ambas as respostas da IA foram recebidas.');
 
-      if (!dataResponse.text) throw new Error("A IA não retornou dados.");
+      // Processando os resultados
+      if (!dataResponse.text) {
+        throw new Error("A IA não retornou dados de texto para extração.");
+      }
       const extractedData = JSON.parse(dataResponse.text.trim());
+      log.info('Dados extraídos:', extractedData);
 
       const imagePartResponse = imageResponse.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
-      const cleanedImageBase64 = imagePartResponse?.inlineData?.data || base64Image;
+      let cleanedImageBase64: string;
+      if (imagePartResponse?.inlineData?.data) {
+        cleanedImageBase64 = imagePartResponse.inlineData.data;
+        log.info('Imagem limpa e processada.');
+      } else {
+        cleanedImageBase64 = base64Image;
+        log.warn('Não foi possível obter imagem limpa da IA, usando a original otimizada.');
+      }
 
+      // Validando e combinando os dados
       if (!/^\d{4}-\d{2}-\d{2}$/.test(extractedData.date)) {
+        log.warn("Formato de data inválido da IA, usando data de hoje.", { date: extractedData.date });
         extractedData.date = new Date().toISOString().split('T')[0];
       }
       
-      onScanComplete({ ...extractedData, scannedImage: cleanedImageBase64 });
+      const finalData = {
+        ...extractedData,
+        scannedImage: cleanedImageBase64,
+      };
+
+      log.info('Digitalização concluída com sucesso.', { description: finalData.description, value: finalData.value, date: finalData.date });
+      onScanComplete(finalData);
       handleClose();
 
     } catch (error) {
-      log.error("Erro na digitalização:", error);
-      if (error instanceof Error && error.message.toLowerCase().includes('api key not valid')) {
-          setScanError("PARA O DESENVOLVEDOR: A chave de API do Gemini configurada em 'supabase/client.ts' é inválida.");
-      } else {
-          setScanError('Falha ao processar o recibo. Verifique a qualidade da imagem e tente novamente.');
+      log.error("Ocorreu um erro detalhado ao digitalizar o recibo", { error });
+
+      let userMessage = 'A IA não conseguiu processar a imagem. Verifique o console para detalhes técnicos e tente novamente.';
+      if (error instanceof Error) {
+        // FIX: Updated error message to reflect API key coming from environment variables.
+        if (error.message.toLowerCase().includes('api key not valid')) {
+            userMessage = "A chave de API fornecida é inválida. Verifique a configuração do ambiente.";
+        } else if (error.message.includes('JSON')) {
+            userMessage = 'A IA retornou um formato inválido. Tente uma imagem mais nítida.';
+        } else {
+            const specificError = (error as any).cause?.toString() || error.toString();
+            userMessage = `Falha na comunicação com a IA. Detalhes: ${specificError}.`;
+        }
       }
+      setScanError(userMessage);
     } finally {
       setIsLoading(false);
     }
