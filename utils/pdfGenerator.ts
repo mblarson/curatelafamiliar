@@ -143,3 +143,83 @@ export const generateTransactionsPDF = (options: PdfOptions) => {
 
     doc.save(fileName);
 };
+
+export const generateCommentsPDF = (options: { 
+    account: BankAccount,
+    period: { start: string, end: string },
+    transactions: Transaction[] 
+}) => {
+    const { account, period, transactions } = options;
+    const { jsPDF } = window.jspdf;
+    
+    // PDF em modo Paisagem (Landscape)
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+
+    // Cabeçalho do Relatório
+    doc.setFontSize(18);
+    doc.text('Relatório de Comentários e Observações', margin, 22);
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Conta: ${account.name}`, margin, 29);
+    doc.text(`Período: ${formatDate(period.start)} a ${formatDate(period.end)}`, margin, 36);
+
+    let currentY = 45;
+
+    // Ordena transações por data
+    const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    if (sortedTransactions.length === 0) {
+        doc.setFontSize(12);
+        doc.setTextColor(0);
+        doc.text('Nenhum comentário registrado para os filtros selecionados.', margin, currentY);
+    } else {
+        sortedTransactions.forEach((t) => {
+            // Estrutura de Tabela por Comentário (Mandatório)
+            doc.autoTable({
+                startY: currentY,
+                head: [[
+                    { content: `NOME DA TRANSAÇÃO: ${t.description || 'Sem Descrição'}`, styles: { halign: 'left', cellWidth: 'auto' } },
+                    { content: `DATA: ${formatDate(t.date)}`, styles: { halign: 'center', cellWidth: 40 } },
+                    { content: `VALOR DA TRANSAÇÃO: ${formatCurrency(t.value)}`, styles: { halign: 'right', cellWidth: 60 } }
+                ]],
+                body: [[
+                    { content: t.comments || 'Sem observações.', colSpan: 3, styles: { cellPadding: 5, fontStyle: 'italic' } }
+                ]],
+                theme: 'grid',
+                headStyles: { 
+                    fillColor: [75, 85, 99], // Gray-600
+                    textColor: [255, 255, 255],
+                    fontSize: 10,
+                    fontStyle: 'bold'
+                },
+                bodyStyles: {
+                    fontSize: 10,
+                    textColor: [31, 41, 55], // Gray-800
+                },
+                margin: { left: margin, right: margin },
+                tableWidth: pageWidth - (margin * 2),
+            });
+
+            currentY = doc.lastAutoTable.finalY + 10;
+
+            // Gerencia quebra de página
+            if (currentY > doc.internal.pageSize.getHeight() - 20) {
+                doc.addPage();
+                currentY = 20;
+            }
+        });
+    }
+
+    // Rodapé com numeração
+    const pageCount = doc.internal.getNumberOfPages();
+    for(let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(9);
+        doc.setTextColor(150);
+        doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin - 20, doc.internal.pageSize.getHeight() - 10);
+    }
+
+    doc.save(`comentarios_${account.name.toLowerCase().replace(/\s/g, '_')}.pdf`);
+};

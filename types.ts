@@ -1,3 +1,4 @@
+
 export enum CategoryType {
   RECEITA = 'RECEITA',
   DESPESA = 'DESPESA',
@@ -51,6 +52,7 @@ export interface Transaction {
   value: number;
   type: 'checking_account' | 'credit_card';
   attachments?: Attachment[];
+  comments?: string;
 }
 
 export interface Document {

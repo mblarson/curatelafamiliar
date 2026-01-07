@@ -5,12 +5,13 @@ import Transactions from './components/pages/Transactions';
 import Reports from './components/pages/Reports';
 import Documents from './components/pages/Documents';
 import Funcionamento from './components/pages/Funcionamento';
+import CommentsReport from './components/pages/CommentsReport';
 import Console from './components/ui/Console';
 import AIChat from './components/ai/AIChat';
 import { useAppData } from './hooks/useAppData';
-import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPulse, Loader2, FileText, Activity } from 'lucide-react';
+import { Menu, X, Landmark, List, CreditCard, LayoutDashboard, Wallet, HeartPulse, Loader2, FileText, Activity, MessageSquare } from 'lucide-react';
 
-type Page = 'Dashboard' | 'Conta Bancária' | 'Categorias' | 'Conta Corrente' | 'Cartão de Crédito' | 'Documentos' | 'Funcionamento';
+type Page = 'Dashboard' | 'Conta Bancária' | 'Categorias' | 'Conta Corrente' | 'Cartão de Crédito' | 'Documentos' | 'Funcionamento' | 'Comentários';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('Dashboard');
@@ -44,6 +45,8 @@ const App: React.FC = () => {
         return <Documents />;
       case 'Funcionamento':
         return <Funcionamento />;
+      case 'Comentários':
+        return <CommentsReport />;
       default:
         return <Reports />;
     }
@@ -53,6 +56,7 @@ const App: React.FC = () => {
     { name: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
     { name: 'Conta Corrente', icon: <Wallet className="w-5 h-5" /> },
     { name: 'Cartão de Crédito', icon: <CreditCard className="w-5 h-5" /> },
+    { name: 'Comentários', icon: <MessageSquare className="w-5 h-5" /> },
     { name: 'Documentos', icon: <FileText className="w-5 h-5" /> },
     { name: 'Conta Bancária', icon: <Landmark className="w-5 h-5" /> },
     { name: 'Categorias', icon: <List className="w-5 h-5" /> },
@@ -100,8 +104,8 @@ const App: React.FC = () => {
           </ul>
         </nav>
         
-        <div className="border-t border-gray-100 pt-4 mt-auto text-center text-xs text-gray-400">
-            <p>Feito com cuidado para você.</p>
+        <div className="border-t border-gray-100 pt-4 mt-auto">
+            <p className="text-center text-xs text-gray-400 mt-4">Feito com cuidado para você.</p>
         </div>
       </aside>
 
