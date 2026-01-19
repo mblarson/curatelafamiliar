@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, ReactNode, useMemo } from 'react';
 import { BankAccount, Category, Transaction, Document, Attachment, NewAttachment, KeepAliveLog } from '../types';
 import { supabase, base64ToBlob } from '../supabase/client';
@@ -142,8 +141,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const uploadedAttachments: Attachment[] = [];
     for (const attachment of newAttachments) {
       const sanitizedName = attachment.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const filePath = `public/${crypto.randomUUID()}-${sanitizedName}`;
+      // Alterado para não usar prefixo 'public/' que pode causar erros de permissão de pasta
+      const filePath = `${crypto.randomUUID()}-${sanitizedName}`;
       
+      console.log(`Iniciando upload de anexo: ${filePath}`);
       const { error: uploadError } = await supabase.storage
         .from('attachments')
         .upload(filePath, base64ToBlob(attachment.data, 'image/jpeg'));
@@ -154,6 +155,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       
       const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
+      console.log(`Upload concluído com sucesso. URL: ${publicUrl}`);
       uploadedAttachments.push({ id: attachment.id, name: attachment.name, url: publicUrl });
     }
     return uploadedAttachments;

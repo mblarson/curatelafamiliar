@@ -137,7 +137,8 @@ const App: React.FC = () => {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 sm:p-8 lg:p-10 bg-slate-50 no-scrollbar">
-          <div className="max-w-7xl mx-auto animate-slide-up pb-20 lg:pb-0">
+          {/* Removida a classe animate-slide-up daqui para não quebrar modais fixos */}
+          <div className="max-w-7xl mx-auto pb-20 lg:pb-0 opacity-0 animate-[fadeIn_0.5s_ease-out_forwards]">
             {renderPage()}
           </div>
         </main>
