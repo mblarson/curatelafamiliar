@@ -71,7 +71,8 @@ const TransactionForm: React.FC<{
         setIsSubmitting(true);
         const transactionData = { 
             description, nature, accountId, categoryId, date, value, 
-            type: transactionType, comments, numeroNota, paymentMethod,
+            type: transactionType, comments, numeroNota, 
+            paymentMethod: transactionType === 'credit_card' ? undefined : paymentMethod,
             attachments: existingAttachments
         };
         await onSubmit(transactionData, newAttachments);
@@ -120,17 +121,20 @@ const TransactionForm: React.FC<{
                     <div className="bg-[#c5a059]/10 p-1.5 rounded-lg">
                         <CreditCard size={14} className="text-[#c5a059]" />
                     </div>
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Documentação e Meio</h4>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Documentação</h4>
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className={transactionType === 'credit_card' ? 'grid grid-cols-1' : 'grid grid-cols-1 sm:grid-cols-2 gap-3'}>
                     <input type="text" value={numeroNota} onChange={(e) => setNumeroNota(e.target.value)} placeholder="Nº da Nota / Cupom" className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none text-sm" />
-                    <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as any)} className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold outline-none text-sm cursor-pointer">
-                        <option value="">Meio de Pagamento</option>
-                        <option value="PIX">PIX</option>
-                        <option value="Cartão de Débito">Cartão de Débito</option>
-                        <option value="BOLETO">Boleto</option>
-                    </select>
+                    
+                    {transactionType !== 'credit_card' && (
+                        <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as any)} className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold outline-none text-sm cursor-pointer">
+                            <option value="">Meio de Pagamento</option>
+                            <option value="PIX">PIX</option>
+                            <option value="Cartão de Débito">Cartão de Débito</option>
+                            <option value="BOLETO">Boleto</option>
+                        </select>
+                    )}
                 </div>
 
                 <textarea 
