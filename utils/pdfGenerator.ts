@@ -68,8 +68,8 @@ export const generateTransactionsPDF = (options: PdfOptions) => {
     }
 
     const tableColumn = isCheckingAccount
-        ? ["Data", "Descrição", "Nº Nota", "MEIO", "Entrada (+)", "Saída (-)", "Saldo"]
-        : ["Data", "Descrição", "Nº Nota", "Entrada (+)", "Saída (-)"];
+        ? ["Data", "Descrição", "Nº Nota", "MEIO", "C/D", "Valor", "Saldo"]
+        : ["Data", "Descrição", "Nº Nota", "Saída (-)"];
 
     const tableRows: (string | number)[][] = [];
     let runningBalance = previousBalance;
@@ -94,15 +94,11 @@ export const generateTransactionsPDF = (options: PdfOptions) => {
 
         if (isCheckingAccount) {
             transactionData.push(t.paymentMethod || '-');
-        }
-
-        transactionData.push(
-            entrada > 0 ? formatCurrency(entrada) : '-',
-            saida > 0 ? formatCurrency(saida) : '-',
-        );
-
-        if (isCheckingAccount) {
+            transactionData.push(t.nature === 'RECEITA' ? '+' : '-');
+            transactionData.push(formatCurrency(t.value));
             transactionData.push(formatCurrency(runningBalance));
+        } else {
+            transactionData.push(saida > 0 ? formatCurrency(saida) : '-');
         }
         tableRows.push(transactionData);
     });
@@ -113,6 +109,9 @@ export const generateTransactionsPDF = (options: PdfOptions) => {
         startY: startY,
         theme: 'grid',
         headStyles: { fillColor: [37, 99, 235] }, // Blue
+        columnStyles: isCheckingAccount ? {
+            4: { cellWidth: 10, halign: 'center' } // Coluna C/D compacta
+        } : {},
         didDrawPage: (data: any) => {
             const pageCount = doc.internal.getNumberOfPages();
             doc.setFontSize(10);
