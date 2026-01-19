@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../supabase/client';
-import { HeartPulse, LogIn, UserPlus, AlertCircle, Loader2 } from 'lucide-react';
+import { ShieldCheck, LogIn, UserPlus, AlertCircle, Loader2 } from 'lucide-react';
 
 const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -21,94 +21,79 @@ const Auth: React.FC = () => {
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        alert('Cadastro realizado! Por favor, verifique seu e-mail para confirmar a conta.');
+        alert('Verifique seu e-mail para confirmar a conta.');
       }
     } catch (err: any) {
-      setError(err.error_description || err.message);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-md space-y-8">
+    <div className="flex min-h-screen items-center justify-center bg-slate-900 p-6 relative overflow-hidden">
+      <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#c5a059]/10 blur-[120px] rounded-full"></div>
+      <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full"></div>
+      
+      <div className="w-full max-w-lg space-y-12 animate-slide-up relative z-10">
         <div className="text-center">
-            <div className="inline-block bg-blue-600 p-3 rounded-xl mb-4">
-                <HeartPulse className="w-8 h-8 text-white" />
+            <div className="inline-block bg-gradient-to-br from-[#c5a059] to-[#d9b36a] p-4 rounded-[2rem] shadow-2xl mb-8">
+                <ShieldCheck className="w-10 h-10 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-800">Curatela Contas</h1>
-            <p className="mt-2 text-gray-500">
-              {isLogin ? 'Bem-vindo de volta! Acesse sua conta.' : 'Crie sua conta para começar a organizar.'}
+            <h1 className="text-4xl font-[800] text-white tracking-tight">Curatela Contas</h1>
+            <p className="mt-4 text-slate-400 font-medium tracking-wide">
+              {isLogin ? 'Autenticação Segura Sovereign Trust' : 'Solicitar Acesso ao Sistema de Curatela'}
             </p>
         </div>
 
-        <div className="bg-white p-8 rounded-2xl shadow-lg">
-            <form className="space-y-6" onSubmit={handleAuth}>
+        <div className="bg-white/10 backdrop-blur-2xl p-10 rounded-[2.5rem] shadow-2xl border border-white/10">
+            <form className="space-y-8" onSubmit={handleAuth}>
                 <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-600">Email</label>
+                    <label htmlFor="email" className="block text-[10px] font-extrabold text-[#c5a059] uppercase tracking-[0.25em] mb-3">Identidade Eletrônica</label>
                     <input
                         id="email"
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
-                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="seu@email.com"
+                        className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-[#c5a059] transition-all font-medium placeholder:text-slate-600"
+                        placeholder="exemplo@dominio.com"
                     />
                 </div>
                 <div>
-                    <label htmlFor="password"  className="block text-sm font-medium text-gray-600">Senha</label>
+                    <label htmlFor="password"  className="block text-[10px] font-extrabold text-[#c5a059] uppercase tracking-[0.25em] mb-3">Chave de Acesso</label>
                     <input
                         id="password"
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
-                        minLength={6}
-                        className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-[#c5a059] transition-all font-medium placeholder:text-slate-600"
                         placeholder="••••••••"
                     />
                 </div>
 
                 {error && (
-                    <div className="bg-red-50 border-l-4 border-red-400 p-3 flex items-center gap-2">
-                        <AlertCircle className="h-5 w-5 text-red-500" />
-                        <p className="text-sm text-red-700">{error}</p>
+                    <div className="bg-rose-500/10 border-l-4 border-rose-500 p-4 rounded flex items-center gap-3">
+                        <AlertCircle className="h-5 w-5 text-rose-500" />
+                        <p className="text-[11px] font-bold text-rose-500 uppercase tracking-wider">{error}</p>
                     </div>
                 )}
 
                 <button
                     type="submit"
                     disabled={loading}
-                    className="w-full flex justify-center items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow disabled:bg-blue-300"
+                    className="btn-premium-gold w-full flex justify-center items-center gap-3 px-8 py-5 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl disabled:opacity-50"
                 >
-                    {loading ? (
-                        <>
-                           <Loader2 className="w-5 h-5 animate-spin" />
-                           Processando...
-                        </>
-                    ) : isLogin ? (
-                        <>
-                            <LogIn className="w-5 h-5" />
-                            Entrar
-                        </>
-                    ) : (
-                         <>
-                            <UserPlus className="w-5 h-5" />
-                            Cadastrar
-                        </>
-                    )}
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? <LogIn size={20} /> : <UserPlus size={20} />)}
+                    {loading ? 'PROCESSANDO...' : (isLogin ? 'ENTRAR NO SISTEMA' : 'SOLICITAR ACESSO')}
                 </button>
             </form>
             
-            <div className="mt-6 text-center">
-                <p className="text-sm text-gray-600">
-                    {isLogin ? 'Não tem uma conta?' : 'Já possui uma conta?'}
-                    <button onClick={() => { setIsLogin(!isLogin); setError(null); }} className="font-medium text-blue-600 hover:underline ml-1">
-                        {isLogin ? 'Cadastre-se' : 'Faça login'}
-                    </button>
-                </p>
+            <div className="mt-10 text-center">
+                <button onClick={() => { setIsLogin(!isLogin); setError(null); }} className="text-[10px] font-extrabold text-slate-500 hover:text-white uppercase tracking-[0.2em] transition-colors">
+                    {isLogin ? 'NÃO POSSUI CREDENCIAIS? SOLICITE AQUI' : 'JÁ POSSUI ACESSO? VOLTAR AO LOGIN'}
+                </button>
             </div>
         </div>
       </div>

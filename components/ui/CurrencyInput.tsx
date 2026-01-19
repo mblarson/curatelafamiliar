@@ -31,7 +31,7 @@ const CurrencyInput: React.FC<CurrencyInputProps> = ({ value, onChange, placehol
       value={displayValue}
       onChange={handleChange}
       placeholder={placeholder || 'R$ 0,00'}
-      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#c5a059] transition-all gold-focus font-semibold tabular-nums"
     />
   );
 };

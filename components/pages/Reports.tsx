@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { useAppData } from '../../hooks/useAppData';
 import { formatCurrency } from '../../utils/formatters';
-import { CategoryType } from '../../types';
 import { ArrowUpRight, ArrowDownLeft, Scale, ShieldCheck, Landmark } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
@@ -12,8 +11,8 @@ const CustomLegend = (props: any) => {
   }
 
   return (
-    <div className="mt-6 w-full">
-        <ul className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3 text-[10px] font-bold justify-center">
+    <div className="mt-4 sm:mt-6 w-full">
+        <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2 text-[9px] sm:text-[10px] font-bold justify-center">
         {payload.map((entry: any, index: number) => (
             <li
             key={`item-${index}`}
@@ -21,7 +20,7 @@ const CustomLegend = (props: any) => {
             title={entry.value}
             >
             <span
-                className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0 shadow-sm"
+                className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full inline-block flex-shrink-0 shadow-sm"
                 style={{ backgroundColor: entry.color }}
             />
             <span className="text-slate-500 truncate uppercase tracking-widest font-bold">
@@ -85,67 +84,67 @@ const Reports: React.FC = () => {
   const COLORS = ['#0f172a', '#c5a059', '#334155', '#d9b36a', '#475569', '#94a3b8', '#cbd5e1'];
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6 sm:space-y-10">
       <div>
-        <h1 className="text-4xl font-[800] text-slate-900 tracking-tight">Dashboard Executivo</h1>
-        <p className="text-slate-500 mt-2 font-medium tracking-wide">Relatório consolidado de ativos e fluxos financeiros.</p>
+        <h1 className="text-2xl sm:text-4xl font-[800] text-slate-900 tracking-tight">Dashboard Executivo</h1>
+        <p className="text-sm sm:text-base text-slate-500 mt-1 sm:mt-2 font-medium tracking-wide">Relatório consolidado de ativos e fluxos financeiros.</p>
       </div>
       
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-        <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-2xl flex flex-col justify-between relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                <ShieldCheck size={120} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
+        <div className="bg-slate-900 text-white p-6 sm:p-8 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col justify-between relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 sm:p-8 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                <ShieldCheck size={80} className="sm:w-[120px] sm:h-[120px]" />
             </div>
             <div className="relative z-10">
-                <p className="font-extrabold text-[#c5a059] uppercase tracking-[0.25em] text-[10px]">Patrimônio Total</p>
-                <p className="text-4xl font-[800] mt-3 tracking-tighter tabular-nums">{formatCurrency(totalBalance)}</p>
+                <p className="font-extrabold text-[#c5a059] uppercase tracking-[0.25em] text-[9px] sm:text-[10px]">Patrimônio Total</p>
+                <p className="text-2xl sm:text-4xl font-[800] mt-2 sm:mt-3 tracking-tighter tabular-nums">{formatCurrency(totalBalance)}</p>
             </div>
-            <div className="flex items-center gap-2 mt-6 font-bold text-[11px] text-slate-400 uppercase tracking-widest relative z-10">
+            <div className="flex items-center gap-2 mt-4 sm:mt-6 font-bold text-[9px] sm:text-[11px] text-slate-400 uppercase tracking-widest relative z-10">
                 <Landmark size={14} className="text-[#c5a059]" />
-                <span>Interbancário Consolidado</span>
+                <span>Consolidado</span>
             </div>
         </div>
         
-        <div className="bg-white p-8 rounded-3xl premium-shadow border border-slate-100 card-hover">
+        <div className="bg-white p-6 sm:p-8 rounded-2xl sm:rounded-3xl premium-shadow border border-slate-100 active:scale-[0.98] transition-transform">
             <div className="flex items-center justify-between">
-                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-[0.2em]">Receitas do Mês</p>
-                <div className="bg-emerald-50 text-emerald-600 p-2.5 rounded-2xl">
-                    <ArrowUpRight size={20} />
+                <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-[0.2em]">Receitas/Mês</p>
+                <div className="bg-emerald-50 text-emerald-600 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl">
+                    <ArrowUpRight size={16} className="sm:w-5 sm:h-5" />
                 </div>
             </div>
-            <p className="text-3xl font-[800] text-slate-900 mt-3 tabular-nums">{formatCurrency(monthlySummary.income)}</p>
+            <p className="text-xl sm:text-3xl font-[800] text-slate-900 mt-2 sm:mt-3 tabular-nums">{formatCurrency(monthlySummary.income)}</p>
         </div>
 
-        <div className="bg-white p-8 rounded-3xl premium-shadow border border-slate-100 card-hover">
+        <div className="bg-white p-6 sm:p-8 rounded-2xl sm:rounded-3xl premium-shadow border border-slate-100 active:scale-[0.98] transition-transform">
             <div className="flex items-center justify-between">
-                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-[0.2em]">Despesas do Mês</p>
-                <div className="bg-rose-50 text-rose-600 p-2.5 rounded-2xl">
-                    <ArrowDownLeft size={20} />
+                <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-[0.2em]">Despesas/Mês</p>
+                <div className="bg-rose-50 text-rose-600 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl">
+                    <ArrowDownLeft size={16} className="sm:w-5 sm:h-5" />
                 </div>
             </div>
-            <p className="text-3xl font-[800] text-slate-900 mt-3 tabular-nums">{formatCurrency(monthlySummary.expense)}</p>
+            <p className="text-xl sm:text-3xl font-[800] text-slate-900 mt-2 sm:mt-3 tabular-nums">{formatCurrency(monthlySummary.expense)}</p>
         </div>
         
-        <div className="bg-white p-8 rounded-3xl premium-shadow border border-slate-100 card-hover">
+        <div className="bg-white p-6 sm:p-8 rounded-2xl sm:rounded-3xl premium-shadow border border-slate-100 active:scale-[0.98] transition-transform">
             <div className="flex items-center justify-between">
-                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-[0.2em]">Balanço Líquido</p>
-                 <div className="bg-slate-50 text-slate-600 p-2.5 rounded-2xl">
-                    <Scale size={20} />
+                <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-[0.2em]">Balanço Líquido</p>
+                 <div className="bg-slate-50 text-slate-600 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl">
+                    <Scale size={16} className="sm:w-5 sm:h-5" />
                 </div>
             </div>
-            <p className={`text-3xl font-[800] mt-3 tabular-nums ${monthlySummary.income - monthlySummary.expense >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
+            <p className={`text-xl sm:text-3xl font-[800] mt-2 sm:mt-3 tabular-nums ${monthlySummary.income - monthlySummary.expense >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
                 {formatCurrency(monthlySummary.income - monthlySummary.expense)}
             </p>
         </div>
       </div>
       
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        <div className="lg:col-span-2 bg-white p-8 rounded-3xl premium-shadow border border-slate-100">
-           <h2 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-[0.25em] mb-8">Alocação por Categoria</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 sm:gap-8">
+        <div className="lg:col-span-2 bg-white p-6 sm:p-8 rounded-2xl sm:rounded-3xl premium-shadow border border-slate-100 overflow-hidden">
+           <h2 className="text-[9px] sm:text-[11px] font-extrabold text-slate-400 uppercase tracking-[0.25em] mb-4 sm:mb-8">Alocação</h2>
             {expenseByCategoryData.length > 0 ? (
-                <div style={{ width: '100%', height: 480 }}>
+                <div style={{ width: '100%', height: 350 }} className="sm:h-[480px]">
                     <ResponsiveContainer>
                         <PieChart>
                             <Pie 
@@ -153,9 +152,9 @@ const Reports: React.FC = () => {
                                 dataKey="value" 
                                 nameKey="name" 
                                 cx="50%" 
-                                cy="40%" 
-                                innerRadius={90} 
-                                outerRadius={120} 
+                                cy="45%" 
+                                innerRadius={70} 
+                                outerRadius={100} 
                                 paddingAngle={5}
                                 fill="#8884d8" 
                                 labelLine={false} 
@@ -165,26 +164,26 @@ const Reports: React.FC = () => {
                             </Pie>
                             <Tooltip 
                                 formatter={(value: number) => formatCurrency(value)} 
-                                contentStyle={{ backgroundColor: '#ffffff', border: 'none', borderRadius: '1.5rem', boxShadow: '0 10px 30px -5px rgba(0,0,0,0.1)', fontFamily: 'Plus Jakarta Sans, sans-serif' }} 
+                                contentStyle={{ backgroundColor: '#ffffff', border: 'none', borderRadius: '1rem', boxShadow: '0 10px 30px -5px rgba(0,0,0,0.1)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: '12px' }} 
                             />
                             <Legend content={<CustomLegend />} />
                         </PieChart>
                     </ResponsiveContainer>
                 </div>
-            ) : <p className="text-slate-400 text-center pt-24 font-bold italic tracking-wide uppercase text-[10px]">Dados insuficientes para análise visual.</p>}
+            ) : <p className="text-slate-400 text-center py-20 font-bold italic tracking-wide uppercase text-[9px] sm:text-[10px]">Dados insuficientes.</p>}
         </div>
-        <div className="lg:col-span-3 bg-white p-8 rounded-3xl premium-shadow border border-slate-100">
-          <h2 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-[0.25em] mb-8">Fluxo de Competência Mensal</h2>
-          <div style={{ width: '100%', height: 320 }}>
+        <div className="lg:col-span-3 bg-white p-6 sm:p-8 rounded-2xl sm:rounded-3xl premium-shadow border border-slate-100 overflow-hidden">
+          <h2 className="text-[9px] sm:text-[11px] font-extrabold text-slate-400 uppercase tracking-[0.25em] mb-4 sm:mb-8">Fluxo de Competência</h2>
+          <div style={{ width: '100%', height: 280 }} className="sm:h-[320px]">
              <ResponsiveContainer>
-                <BarChart data={[{ name: 'Mês Atual', receitas: monthlySummary.income, despesas: monthlySummary.expense }]} margin={{ top: 20, right: 30, left: 10, bottom: 0 }}>
+                <BarChart data={[{ name: 'Mês Atual', receitas: monthlySummary.income, despesas: monthlySummary.expense }]} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700, textTransform: 'uppercase'}} />
-                    <YAxis tickFormatter={(value) => formatCurrency(Number(value))} axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 9, fontWeight: 700}} />
-                    <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{ backgroundColor: '#ffffff', border: 'none', borderRadius: '1.5rem', boxShadow: '0 10px 30px -5px rgba(0,0,0,0.1)', fontFamily: 'Plus Jakarta Sans, sans-serif' }} />
-                    <Legend iconType="circle" wrapperStyle={{paddingTop: '20px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: '11px', fontWeight: 700}} />
-                    <Bar dataKey="receitas" fill="#c5a059" name="Créditos" radius={[8, 8, 0, 0]} barSize={60} />
-                    <Bar dataKey="despesas" fill="#0f172a" name="Débitos" radius={[8, 8, 0, 0]} barSize={60} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 9, fontWeight: 700, textTransform: 'uppercase'}} />
+                    <YAxis tickFormatter={(value) => formatCurrency(Number(value))} axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 8, fontWeight: 700}} />
+                    <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{ backgroundColor: '#ffffff', border: 'none', borderRadius: '1rem', boxShadow: '0 10px 30px -5px rgba(0,0,0,0.1)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: '12px' }} />
+                    <Legend iconType="circle" wrapperStyle={{paddingTop: '15px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: '10px', fontWeight: 700}} />
+                    <Bar dataKey="receitas" fill="#c5a059" name="Créditos" radius={[6, 6, 0, 0]} barSize={40} />
+                    <Bar dataKey="despesas" fill="#0f172a" name="Débitos" radius={[6, 6, 0, 0]} barSize={40} />
                 </BarChart>
             </ResponsiveContainer>
           </div>
