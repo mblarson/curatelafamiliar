@@ -1,20 +1,21 @@
 import React, { useState, useMemo } from 'react';
 import { useAppData } from '../../hooks/useAppData';
-import { Transaction, TransactionNature, CategoryType } from '../../types';
+import { Transaction, TransactionNature, CategoryType, NewAttachment, Attachment } from '../../types';
 import Modal from '../ui/Modal';
 import PdfOptionsModal from '../ui/PdfOptionsModal';
 import CurrencyInput from '../ui/CurrencyInput';
+import ViewAttachmentModal from '../ui/ViewAttachmentModal';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { generateTransactionsPDF } from '../../utils/pdfGenerator';
 import { 
   Plus, Trash2, Download, Filter, Wallet, 
-  Edit, MessageSquare, ChevronRight, X
+  Edit, MessageSquare, ChevronRight, X, FileText, CreditCard, Image as ImageIcon, Camera
 } from 'lucide-react';
 
 const TransactionForm: React.FC<{
-  onSubmit: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
+  onSubmit: (transaction: Omit<Transaction, 'id'>, newAttachments: NewAttachment[]) => Promise<void>;
   onClose: () => void;
-  transactionToEdit?: Partial<Transaction> | null;
+  transactionToEdit?: Transaction | null;
   transactionType: 'checking_account' | 'credit_card';
 }> = ({ onSubmit, onClose, transactionToEdit, transactionType }) => {
     const { accounts, categories } = useAppData();
@@ -27,53 +28,168 @@ const TransactionForm: React.FC<{
     const [comments, setComments] = useState(transactionToEdit?.comments || '');
     const [numeroNota, setNumeroNota] = useState(transactionToEdit?.numeroNota || '');
     const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'Cartão de Débito' | 'BOLETO' | undefined>(transactionToEdit?.paymentMethod);
+    
+    // Gestão de Anexos
+    const [existingAttachments, setExistingAttachments] = useState<Attachment[]>(transactionToEdit?.attachments || []);
+    const [newAttachments, setNewAttachments] = useState<NewAttachment[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [viewingAttachment, setViewingAttachment] = useState<Attachment | null>(null);
 
     const filteredCategories = useMemo(() => {
         return categories.filter(c => c.type === (nature as unknown as CategoryType));
     }, [categories, nature]);
 
+    const removeNewAttachment = (id: string) => {
+        setNewAttachments(prev => prev.filter(a => a.id !== id));
+    };
+
+    const removeExistingAttachment = (id: string) => {
+        setExistingAttachments(prev => prev.filter(a => a.id !== id));
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64 = (reader.result as string).split(',')[1];
+                setNewAttachments(prev => [...prev, {
+                    id: crypto.randomUUID(),
+                    name: file.name,
+                    data: base64,
+                    type: 'image_base64_jpeg'
+                }]);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!accountId || !categoryId || value <= 0) return;
+        
         setIsSubmitting(true);
         const transactionData = { 
             description, nature, accountId, categoryId, date, value, 
-            type: transactionType, comments, numeroNota, paymentMethod 
+            type: transactionType, comments, numeroNota, paymentMethod,
+            attachments: existingAttachments
         };
-        await onSubmit(transactionData);
+        await onSubmit(transactionData, newAttachments);
         setIsSubmitting(false);
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-            <div className="grid grid-cols-2 gap-3">
-                <button type="button" onClick={() => setNature(TransactionNature.RECEITA)} className={`p-3 sm:p-4 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all active:scale-95 ${nature === TransactionNature.RECEITA ? 'bg-emerald-500 text-white shadow-lg' : 'bg-slate-100 text-slate-500'}`}>Receita</button>
-                <button type="button" onClick={() => setNature(TransactionNature.DESPESA)} className={`p-3 sm:p-4 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all active:scale-95 ${nature === TransactionNature.DESPESA ? 'bg-rose-500 text-white shadow-lg' : 'bg-slate-100 text-slate-500'}`}>Despesa</button>
-            </div>
-            
+        <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Seção: Dados Financeiros */}
             <div className="space-y-4">
-                <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none" />
-                <CurrencyInput value={value} onChange={setValue} />
+                <div className="flex items-center gap-2 mb-2">
+                    <div className="bg-[#c5a059]/10 p-1.5 rounded-lg">
+                        <Wallet size={14} className="text-[#c5a059]" />
+                    </div>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Informações Gerais</h4>
+                </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold outline-none">
-                        <option value="">Conta Bancária</option>
+                <div className="grid grid-cols-2 gap-3">
+                    <button type="button" onClick={() => setNature(TransactionNature.RECEITA)} className={`p-3.5 rounded-xl font-bold uppercase tracking-widest text-[9px] transition-all active:scale-95 ${nature === TransactionNature.RECEITA ? 'bg-emerald-500 text-white shadow-lg' : 'bg-slate-100 text-slate-500'}`}>Crédito (+)</button>
+                    <button type="button" onClick={() => setNature(TransactionNature.DESPESA)} className={`p-3.5 rounded-xl font-bold uppercase tracking-widest text-[9px] transition-all active:scale-95 ${nature === TransactionNature.DESPESA ? 'bg-rose-500 text-white shadow-lg' : 'bg-slate-100 text-slate-500'}`}>Débito (-)</button>
+                </div>
+
+                <div className="space-y-3">
+                    <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="O que foi pago/recebido?" className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none focus:ring-2 focus:ring-[#c5a059]" />
+                    <CurrencyInput value={value} onChange={setValue} />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold outline-none text-sm cursor-pointer">
+                        <option value="">Selecione a Conta</option>
                         {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
                     </select>
 
-                    <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold outline-none">
+                    <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold outline-none text-sm cursor-pointer">
                         <option value="">Categoria</option>
                         {filteredCategories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                     </select>
                 </div>
 
-                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none" />
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none" />
             </div>
 
-            <div className="flex justify-end gap-3 pt-6">
-                <button type="button" onClick={onClose} className="px-6 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold uppercase text-[10px] transition-all active:scale-95">Cancelar</button>
-                <button type="submit" disabled={isSubmitting} className="btn-premium-gold px-8 py-3 text-white rounded-xl font-extrabold uppercase text-[10px] shadow-lg disabled:opacity-50 transition-all active:scale-95">Confirmar</button>
+            {/* Seção: Detalhes do Pagamento */}
+            <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                    <div className="bg-[#c5a059]/10 p-1.5 rounded-lg">
+                        <CreditCard size={14} className="text-[#c5a059]" />
+                    </div>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Documentação e Meio</h4>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input type="text" value={numeroNota} onChange={(e) => setNumeroNota(e.target.value)} placeholder="Nº da Nota / Cupom" className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none text-sm" />
+                    <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as any)} className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold outline-none text-sm cursor-pointer">
+                        <option value="">Meio de Pagamento</option>
+                        <option value="PIX">PIX</option>
+                        <option value="Cartão de Débito">Cartão de Débito</option>
+                        <option value="BOLETO">Boleto</option>
+                    </select>
+                </div>
+
+                <textarea 
+                    value={comments} 
+                    onChange={(e) => setComments(e.target.value)} 
+                    placeholder="Observações importantes para prestação de contas..." 
+                    rows={3}
+                    className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none text-sm resize-none"
+                />
             </div>
+
+            {/* Seção: Anexos */}
+            <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                    <div className="bg-[#c5a059]/10 p-1.5 rounded-lg">
+                        <ImageIcon size={14} className="text-[#c5a059]" />
+                    </div>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Anexos e Comprovantes</h4>
+                </div>
+
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                    {/* Anexos Existentes */}
+                    {existingAttachments.map(att => (
+                        <div key={att.id} className="relative aspect-square rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 group shadow-sm">
+                            <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition-opacity">
+                                <button type="button" onClick={() => setViewingAttachment(att)} className="p-2 bg-white text-slate-900 rounded-xl shadow-lg active:scale-90 transition-transform"><ImageIcon size={16} /></button>
+                                <button type="button" onClick={() => removeExistingAttachment(att.id)} className="p-2 bg-rose-500 text-white rounded-xl shadow-lg active:scale-90 transition-transform"><Trash2 size={16} /></button>
+                            </div>
+                        </div>
+                    ))}
+                    
+                    {/* Novos Anexos (Pre-upload) */}
+                    {newAttachments.map(att => (
+                        <div key={att.id} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-dashed border-blue-200 bg-blue-50 group shadow-sm">
+                            <img src={`data:image/jpeg;base64,${att.data}`} alt={att.name} className="w-full h-full object-cover opacity-60" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <button type="button" onClick={() => removeNewAttachment(att.id)} className="p-2.5 bg-rose-500 text-white rounded-2xl shadow-xl active:scale-90 transition-transform"><X size={18} /></button>
+                            </div>
+                            <div className="absolute bottom-1.5 left-1.5 bg-blue-600 text-white text-[8px] px-2 py-0.5 rounded-md font-black uppercase tracking-widest">Novo</div>
+                        </div>
+                    ))}
+
+                    <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:bg-slate-50 transition-colors bg-white group active:scale-95">
+                        <div className="bg-slate-50 p-2 rounded-xl group-hover:bg-white transition-colors">
+                            <Camera size={24} className="text-slate-400 group-hover:text-[#c5a059] transition-colors" />
+                        </div>
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Foto / Anexo</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                    </label>
+                </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6">
+                <button type="button" onClick={onClose} className="w-full sm:w-auto px-8 py-4 bg-white text-slate-600 border border-slate-200 rounded-2xl font-bold uppercase text-[10px] tracking-widest transition-all active:scale-95">Cancelar</button>
+                <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto btn-premium-gold px-12 py-4 text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.15em] shadow-xl disabled:opacity-50 transition-all active:scale-95">Gravar Lançamento</button>
+            </div>
+
+            {viewingAttachment && <ViewAttachmentModal isOpen={!!viewingAttachment} onClose={() => setViewingAttachment(null)} attachment={viewingAttachment} />}
         </form>
     );
 };
@@ -103,18 +219,18 @@ const Transactions: React.FC<{
         setActiveActionId(null);
     };
 
-    const handleFormSubmit = async (data: Omit<Transaction, 'id'>) => {
+    const handleFormSubmit = async (data: Omit<Transaction, 'id'>, newAttachments: NewAttachment[]) => {
         if (transactionToEdit) {
-            await updateTransaction({ ...transactionToEdit, ...data });
+            await updateTransaction({ ...transactionToEdit, ...data }, newAttachments);
         } else {
-            await addTransaction(data);
+            await addTransaction(data, newAttachments);
         }
         setIsFormModalOpen(false);
         setTransactionToEdit(null);
     };
 
     const handleDelete = async (id: string) => {
-        if (window.confirm('Excluir este lançamento?')) {
+        if (window.confirm('Excluir este lançamento permanentemente?')) {
             await deleteTransaction(id);
             setActiveActionId(null);
         }
@@ -138,7 +254,7 @@ const Transactions: React.FC<{
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-6">
                 <div>
                     <h1 className="text-2xl sm:text-4xl font-[800] text-slate-900 tracking-tight">{title}</h1>
-                    <p className="text-sm sm:text-base text-slate-500 mt-1 sm:mt-2 font-medium tracking-wide">Gestão detalhada de lançamentos financeiros.</p>
+                    <p className="text-sm sm:text-base text-slate-500 mt-1 sm:mt-2 font-medium tracking-wide">Gestão detalhada de fluxos e comprovantes.</p>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
                     <button onClick={() => setIsPdfOptionsModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 font-bold uppercase tracking-widest text-[9px] sm:text-[10px] shadow-sm active:scale-95 transition-transform">
@@ -176,7 +292,11 @@ const Transactions: React.FC<{
                                     <td className="p-6 text-sm font-semibold text-slate-500 tabular-nums">{formatDate(t.date)}</td>
                                     <td className="p-6">
                                         <div className="flex flex-col">
-                                            <span className="font-bold text-slate-900 tracking-tight">{t.description || '-'}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold text-slate-900 tracking-tight">{t.description || '-'}</span>
+                                                {t.attachments && t.attachments.length > 0 && <ImageIcon size={14} className="text-blue-500" />}
+                                                {t.comments && <MessageSquare size={14} className="text-slate-300" />}
+                                            </div>
                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
                                                 {categories.find(c => c.id === t.categoryId)?.name || 'S/ CATEGORIA'}
                                             </span>
@@ -213,7 +333,10 @@ const Transactions: React.FC<{
                             <div className="flex justify-between items-start">
                                 <div className="flex-1 pr-4">
                                     <p className="text-[9px] font-bold text-slate-400 uppercase tabular-nums tracking-widest">{formatDate(t.date)}</p>
-                                    <h3 className="font-bold text-slate-900 leading-tight mt-1 truncate max-w-[200px]">{t.description || '-'}</h3>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <h3 className="font-bold text-slate-900 leading-tight truncate max-w-[160px]">{t.description || '-'}</h3>
+                                        {t.attachments && t.attachments.length > 0 && <ImageIcon size={12} className="text-blue-500" />}
+                                    </div>
                                     <p className="text-[9px] font-black text-[#c5a059] uppercase mt-0.5 tracking-wider">
                                         {categories.find(c => c.id === t.categoryId)?.name || 'S/ CATEGORIA'}
                                     </p>
