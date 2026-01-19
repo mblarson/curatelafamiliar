@@ -1,4 +1,3 @@
-
 import { Transaction, BankAccount } from '../types';
 import { formatCurrency, formatDate } from './formatters';
 
@@ -109,7 +108,7 @@ export const generateTransactionsPDF = (options: PdfOptions) => {
         theme: 'grid',
         headStyles: { fillColor: [37, 99, 235] }, // Blue
         columnStyles: isCheckingAccount ? {
-            3: { cellWidth: 10, halign: 'center' } // Coluna C/D compacta (ajustado índice de 4 para 3)
+            3: { cellWidth: 10, halign: 'center' } // Coluna C/D compacta
         } : {},
         didDrawPage: (data: any) => {
             const pageCount = doc.internal.getNumberOfPages();
@@ -141,15 +140,14 @@ export const generateTransactionsPDF = (options: PdfOptions) => {
         const finalBalance = previousBalance + totalEntradas - totalSaidas;
         doc.text(`Saldo Final: ${formatCurrency(finalBalance)}`, 14, summaryY);
     } else {
-        const totalFatura = totalSaidas - totalEntradas; // Total expenses minus payments/credits
+        const totalFatura = totalSaidas - totalEntradas;
         doc.text(`Total da Fatura: ${formatCurrency(totalFatura)}`, 14, summaryY);
     }
 
-    const fileName = isCheckingAccount 
-      ? `extrato_${account.name.toLowerCase().replace(/\s/g, '_')}.pdf`
-      : `fatura_${account.name.toLowerCase().replace(/\s/g, '_')}.pdf`;
-
-    doc.save(fileName);
+    // Saída: Exibir PDF em nova aba em vez de baixar
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
 };
 
 export const generateCommentsPDF = (options: { 
@@ -160,12 +158,10 @@ export const generateCommentsPDF = (options: {
     const { account, period, transactions } = options;
     const { jsPDF } = window.jspdf;
     
-    // PDF em modo Paisagem (Landscape)
     const doc = new jsPDF({ orientation: 'landscape' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 14;
 
-    // Cabeçalho do Relatório
     doc.setFontSize(18);
     doc.text('Relatório de Comentários e Observações', margin, 22);
     doc.setFontSize(11);
@@ -175,7 +171,6 @@ export const generateCommentsPDF = (options: {
 
     let currentY = 45;
 
-    // Ordena transações por data
     const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     if (sortedTransactions.length === 0) {
@@ -184,7 +179,6 @@ export const generateCommentsPDF = (options: {
         doc.text('Nenhum comentário registrado para os filtros selecionados.', margin, currentY);
     } else {
         sortedTransactions.forEach((t) => {
-            // Estrutura de Tabela por Comentário (Mandatório)
             doc.autoTable({
                 startY: currentY,
                 head: [[
@@ -197,14 +191,14 @@ export const generateCommentsPDF = (options: {
                 ]],
                 theme: 'grid',
                 headStyles: { 
-                    fillColor: [75, 85, 99], // Gray-600
+                    fillColor: [75, 85, 99],
                     textColor: [255, 255, 255],
                     fontSize: 10,
                     fontStyle: 'bold'
                 },
                 bodyStyles: {
                     fontSize: 10,
-                    textColor: [31, 41, 55], // Gray-800
+                    textColor: [31, 41, 55],
                 },
                 margin: { left: margin, right: margin },
                 tableWidth: pageWidth - (margin * 2),
@@ -212,7 +206,6 @@ export const generateCommentsPDF = (options: {
 
             currentY = doc.lastAutoTable.finalY + 10;
 
-            // Gerencia quebra de página
             if (currentY > doc.internal.pageSize.getHeight() - 20) {
                 doc.addPage();
                 currentY = 20;
@@ -220,7 +213,6 @@ export const generateCommentsPDF = (options: {
         });
     }
 
-    // Rodapé com numeração
     const pageCount = doc.internal.getNumberOfPages();
     for(let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -229,5 +221,8 @@ export const generateCommentsPDF = (options: {
         doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin - 20, doc.internal.pageSize.getHeight() - 10);
     }
 
-    doc.save(`comentarios_${account.name.toLowerCase().replace(/\s/g, '_')}.pdf`);
+    // Saída: Exibir PDF em nova aba em vez de baixar
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
 };

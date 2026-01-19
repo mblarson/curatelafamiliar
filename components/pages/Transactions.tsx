@@ -8,8 +8,8 @@ import ViewAttachmentModal from '../ui/ViewAttachmentModal';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { generateTransactionsPDF } from '../../utils/pdfGenerator';
 import { 
-  Plus, Trash2, Download, Filter, Wallet, 
-  Edit, MessageSquare, ChevronRight, X, FileText, CreditCard, Image as ImageIcon, Camera
+  Plus, Trash2, FileText, Filter, Wallet, 
+  Edit, MessageSquare, ChevronRight, X, CreditCard, Image as ImageIcon, Camera, Calendar, ArrowUpDown
 } from 'lucide-react';
 
 const TransactionForm: React.FC<{
@@ -29,7 +29,6 @@ const TransactionForm: React.FC<{
     const [numeroNota, setNumeroNota] = useState(transactionToEdit?.numeroNota || '');
     const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'Cartão de Débito' | 'BOLETO' | undefined>(transactionToEdit?.paymentMethod);
     
-    // Gestão de Anexos
     const [existingAttachments, setExistingAttachments] = useState<Attachment[]>(transactionToEdit?.attachments || []);
     const [newAttachments, setNewAttachments] = useState<NewAttachment[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -81,7 +80,6 @@ const TransactionForm: React.FC<{
 
     return (
         <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Seção: Dados Financeiros */}
             <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                     <div className="bg-[#c5a059]/10 p-1.5 rounded-lg">
@@ -115,7 +113,6 @@ const TransactionForm: React.FC<{
                 <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none" />
             </div>
 
-            {/* Seção: Detalhes do Pagamento */}
             <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                     <div className="bg-[#c5a059]/10 p-1.5 rounded-lg">
@@ -146,7 +143,6 @@ const TransactionForm: React.FC<{
                 />
             </div>
 
-            {/* Seção: Anexos */}
             <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                     <div className="bg-[#c5a059]/10 p-1.5 rounded-lg">
@@ -156,7 +152,6 @@ const TransactionForm: React.FC<{
                 </div>
 
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                    {/* Anexos Existentes */}
                     {existingAttachments.map(att => (
                         <div key={att.id} className="relative aspect-square rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 group shadow-sm">
                             <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
@@ -167,7 +162,6 @@ const TransactionForm: React.FC<{
                         </div>
                     ))}
                     
-                    {/* Novos Anexos (Pre-upload) */}
                     {newAttachments.map(att => (
                         <div key={att.id} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-dashed border-blue-200 bg-blue-50 group shadow-sm">
                             <img src={`data:image/jpeg;base64,${att.data}`} alt={att.name} className="w-full h-full object-cover opacity-60" />
@@ -209,13 +203,32 @@ const Transactions: React.FC<{
     const [selectedAccountFilter, setSelectedAccountFilter] = useState('');
     const [activeActionId, setActiveActionId] = useState<string | null>(null);
 
+    // Filtros unificados
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [sortOption, setSortOption] = useState<'inclusion' | 'date'>('inclusion');
+
     const filteredTransactions = useMemo(() => {
-        return transactions.filter(t => {
+        let list = transactions.filter(t => {
             const matchesType = t.type === transactionType;
             const matchesAccount = selectedAccountFilter ? t.accountId === selectedAccountFilter : true;
+            
+            // Filtro de Data (Habilitado para ambos os módulos)
+            const tDate = new Date(t.date);
+            if (startDate && tDate < new Date(startDate)) return false;
+            if (endDate && tDate > new Date(endDate)) return false;
+            
             return matchesType && matchesAccount;
         });
-    }, [transactions, transactionType, selectedAccountFilter]);
+
+        // Ordenação (Habilitada para ambos os módulos)
+        if (sortOption === 'date') {
+            list = [...list].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        }
+        // Nota: A ordem de inclusão (padrão) já é mantida pela estrutura do AppContext
+
+        return list.slice(0, 50); // Somente as últimas 50 transações
+    }, [transactions, transactionType, selectedAccountFilter, startDate, endDate, sortOption]);
 
     const handleOpenForm = (transaction?: Transaction) => {
         setTransactionToEdit(transaction || null);
@@ -262,7 +275,7 @@ const Transactions: React.FC<{
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
                     <button onClick={() => setIsPdfOptionsModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 font-bold uppercase tracking-widest text-[9px] sm:text-[10px] shadow-sm active:scale-95 transition-transform">
-                        <Download size={16} className="text-[#c5a059]" /> Exportar
+                        <FileText size={16} className="text-[#c5a059]" /> PDF
                     </button>
                     <button onClick={() => handleOpenForm()} className="btn-premium-navy flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 text-white rounded-xl font-extrabold uppercase tracking-widest text-[9px] sm:text-[10px] shadow-lg active:scale-95 transition-transform">
                         <Plus size={18} className="text-[#c5a059]" /> Novo
@@ -271,15 +284,35 @@ const Transactions: React.FC<{
             </div>
 
             <div className="bg-white rounded-2xl sm:rounded-[2.5rem] premium-shadow border border-slate-50 overflow-hidden">
-                <div className="p-4 sm:p-8 border-b border-slate-50 bg-slate-50/20 flex items-center gap-3 sm:gap-4">
-                    <Filter size={14} className="text-[#c5a059]" />
-                    <select value={selectedAccountFilter} onChange={(e) => setSelectedAccountFilter(e.target.value)} className="bg-transparent border-none focus:ring-0 text-[10px] sm:text-xs font-extrabold text-slate-400 uppercase tracking-widest cursor-pointer w-full">
-                        <option value="">Filtrar: Todas as Contas</option>
-                        {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
-                    </select>
+                <div className="p-4 sm:p-8 border-b border-slate-50 bg-slate-50/20 space-y-4">
+                    <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                        <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                            <Filter size={14} className="text-[#c5a059]" />
+                            <select value={selectedAccountFilter} onChange={(e) => setSelectedAccountFilter(e.target.value)} className="bg-transparent border-none focus:ring-0 text-[10px] sm:text-xs font-extrabold text-slate-400 uppercase tracking-widest cursor-pointer w-full">
+                                <option value="">Filtrar: Todas as Contas</option>
+                                {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+                            </select>
+                        </div>
+                        
+                        {/* Filtros unificados (Período e Ordenação) */}
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-100">
+                                <Calendar size={12} className="text-[#c5a059]" />
+                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="text-[10px] border-none p-0 focus:ring-0 font-bold text-slate-500 uppercase" />
+                                <span className="text-[10px] font-bold text-slate-300">A</span>
+                                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="text-[10px] border-none p-0 focus:ring-0 font-bold text-slate-500 uppercase" />
+                            </div>
+                            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-100">
+                                <ArrowUpDown size={12} className="text-[#c5a059]" />
+                                <select value={sortOption} onChange={e => setSortOption(e.target.value as any)} className="text-[10px] border-none p-0 focus:ring-0 font-bold text-slate-500 uppercase bg-transparent">
+                                    <option value="inclusion">Ordem de Inclusão</option>
+                                    <option value="date">Data do Lançamento</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Tabela para Desktop */}
                 <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
@@ -321,7 +354,6 @@ const Transactions: React.FC<{
                     </table>
                 </div>
 
-                {/* Cards para Mobile com Ações sob Demanda */}
                 <div className="md:hidden divide-y divide-slate-50">
                     {filteredTransactions.length === 0 ? (
                          <div className="p-12 text-center">
@@ -353,7 +385,6 @@ const Transactions: React.FC<{
                                 </div>
                             </div>
                             
-                            {/* Menu de Ações Mobile - Revelado por Toque */}
                             {activeActionId === t.id && (
                                 <div className="mt-4 flex gap-2 animate-scale-in">
                                     <button 

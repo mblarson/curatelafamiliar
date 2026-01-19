@@ -47,7 +47,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const [accountsRes, categoriesRes, transactionsRes, documentsRes, keepAliveLogsRes] = await Promise.all([
         supabase.from('accounts').select('*'),
         supabase.from('categories').select('*'),
-        supabase.from('transactions').select('*').order('date', { ascending: false }),
+        supabase.from('transactions').select('*').order('id', { ascending: false }), // Ordem de Inclusão (Baseado no ID gerado ou timestamp interno)
         supabase.from('documents').select('*').order('created_at', { ascending: false }),
         supabase.from('keep_alive_logs').select('*').order('pinged_at', { ascending: false })
       ]);
@@ -168,7 +168,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newTransaction = { ...transactionData, id: crypto.randomUUID(), attachments: uploadedAttachments };
     const { error } = await supabase.from('transactions').insert(newTransaction);
     if (error) return console.error("Error adding transaction:", error.message);
-    setTransactions(prev => [newTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    setTransactions(prev => [newTransaction, ...prev]);
   };
   const addTransactionsBatch = async (transactionsData: Omit<Transaction, 'id'>[]) => {
     const newTransactions = transactionsData.map(t => ({ ...t, id: crypto.randomUUID() }));
@@ -177,7 +177,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.error("Error adding transactions in batch:", error.message);
         throw error;
     }
-    setTransactions(prev => [...prev, ...newTransactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    setTransactions(prev => [...newTransactions, ...prev]);
   };
   const updateTransaction = async (updatedTransactionData: Transaction, newAttachments: NewAttachment[] = []) => {
     const uploadedAttachments = await handleAttachmentUpload(newAttachments);
@@ -185,7 +185,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const transactionToUpdate = { ...updatedTransactionData, attachments: finalAttachments };
     const { error } = await supabase.from('transactions').update(transactionToUpdate).eq('id', transactionToUpdate.id);
     if (error) return console.error("Error updating transaction:", error.message);
-    setTransactions(prev => prev.map(t => t.id === transactionToUpdate.id ? transactionToUpdate : t).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    setTransactions(prev => prev.map(t => t.id === transactionToUpdate.id ? transactionToUpdate : t));
   };
   const deleteTransaction = async (id: string) => {
     const transactionToDelete = transactions.find(t => t.id === id);

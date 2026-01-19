@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppData } from '../../hooks/useAppData';
 import Modal from './Modal';
 import { Calendar, Banknote, AlertCircle } from 'lucide-react';
@@ -20,6 +20,16 @@ const PdfOptionsModal: React.FC<PdfOptionsModalProps> = ({ isOpen, onClose, onSu
   const [startDate, setStartDate] = useState(firstDayOfMonth);
   const [endDate, setEndDate] = useState(todayISO);
   const [error, setError] = useState('');
+
+  // Pré-selecionar "Banco do Brasil" por padrão
+  useEffect(() => {
+    if (isOpen && !accountId && accounts.length > 0) {
+      const bb = accounts.find(a => a.name.toLowerCase().includes('banco do brasil'));
+      if (bb) {
+        setAccountId(bb.id);
+      }
+    }
+  }, [isOpen, accounts, accountId]);
 
   const handleSubmit = () => {
     if (!accountId) {
@@ -97,7 +107,7 @@ const PdfOptionsModal: React.FC<PdfOptionsModalProps> = ({ isOpen, onClose, onSu
 
         <div className="flex justify-end gap-3 pt-4">
           <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">Cancelar</button>
-          <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow">Gerar PDF</button>
+          <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold shadow">Exibir PDF</button>
         </div>
       </div>
     </Modal>
