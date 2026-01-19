@@ -53,6 +53,8 @@ export interface Transaction {
   type: 'checking_account' | 'credit_card';
   attachments?: Attachment[];
   comments?: string;
+  numeroNota?: string;
+  paymentMethod?: 'PIX' | 'Cartão de Débito' | 'BOLETO';
 }
 
 export interface Document {

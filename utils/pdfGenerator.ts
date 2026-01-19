@@ -1,3 +1,4 @@
+
 import { Transaction, BankAccount } from '../types';
 import { formatCurrency, formatDate } from './formatters';
 
@@ -67,8 +68,8 @@ export const generateTransactionsPDF = (options: PdfOptions) => {
     }
 
     const tableColumn = isCheckingAccount
-        ? ["Data", "Descrição", "Entrada (+)", "Saída (-)", "Saldo"]
-        : ["Data", "Descrição", "Entrada (+)", "Saída (-)"];
+        ? ["Data", "Descrição", "Nº Nota", "MEIO", "Entrada (+)", "Saída (-)", "Saldo"]
+        : ["Data", "Descrição", "Nº Nota", "Entrada (+)", "Saída (-)"];
 
     const tableRows: (string | number)[][] = [];
     let runningBalance = previousBalance;
@@ -88,9 +89,18 @@ export const generateTransactionsPDF = (options: PdfOptions) => {
         const transactionData: (string|number)[] = [
             formatDate(t.date),
             t.description,
+            t.numeroNota || '-',
+        ];
+
+        if (isCheckingAccount) {
+            transactionData.push(t.paymentMethod || '-');
+        }
+
+        transactionData.push(
             entrada > 0 ? formatCurrency(entrada) : '-',
             saida > 0 ? formatCurrency(saida) : '-',
-        ];
+        );
+
         if (isCheckingAccount) {
             transactionData.push(formatCurrency(runningBalance));
         }
