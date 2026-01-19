@@ -141,13 +141,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const uploadedAttachments: Attachment[] = [];
     for (const attachment of newAttachments) {
       const sanitizedName = attachment.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      // Alterado para não usar prefixo 'public/' que pode causar erros de permissão de pasta
       const filePath = `${crypto.randomUUID()}-${sanitizedName}`;
       
       console.log(`Iniciando upload de anexo: ${filePath}`);
       const { error: uploadError } = await supabase.storage
         .from('attachments')
-        .upload(filePath, base64ToBlob(attachment.data, 'image/jpeg'));
+        .upload(filePath, base64ToBlob(attachment.data, 'image/jpeg'), {
+          contentType: 'image/jpeg',
+          upsert: true
+        });
 
       if (uploadError) {
         console.error('Error uploading attachment:', uploadError.message);
@@ -179,7 +181,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
   const updateTransaction = async (updatedTransactionData: Transaction, newAttachments: NewAttachment[] = []) => {
     const uploadedAttachments = await handleAttachmentUpload(newAttachments);
-    // Combina anexos que já existiam e que não foram removidos com os novos
     const finalAttachments = [...(updatedTransactionData.attachments || []), ...uploadedAttachments];
     const transactionToUpdate = { ...updatedTransactionData, attachments: finalAttachments };
     const { error } = await supabase.from('transactions').update(transactionToUpdate).eq('id', transactionToUpdate.id);
@@ -212,7 +213,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       
       const { error: uploadError } = await supabase.storage
           .from('attachments')
-          .upload(storagePath, base64ToBlob(base64Data, 'image/jpeg'));
+          .upload(storagePath, base64ToBlob(base64Data, 'image/jpeg'), {
+            contentType: 'image/jpeg',
+            upsert: true
+          });
       
       if (uploadError) {
           console.error("Error uploading document:", uploadError.message);

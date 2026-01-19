@@ -68,7 +68,7 @@ export const generateTransactionsPDF = (options: PdfOptions) => {
     }
 
     const tableColumn = isCheckingAccount
-        ? ["Data", "Descrição", "Nº Nota", "MEIO", "C/D", "Valor", "Saldo"]
+        ? ["Data", "Descrição", "Nº Nota", "C/D", "Valor", "Saldo"]
         : ["Data", "Descrição", "Nº Nota", "Saída (-)"];
 
     const tableRows: (string | number)[][] = [];
@@ -93,7 +93,6 @@ export const generateTransactionsPDF = (options: PdfOptions) => {
         ];
 
         if (isCheckingAccount) {
-            transactionData.push(t.paymentMethod || '-');
             transactionData.push(t.nature === 'RECEITA' ? '+' : '-');
             transactionData.push(formatCurrency(t.value));
             transactionData.push(formatCurrency(runningBalance));
@@ -110,7 +109,7 @@ export const generateTransactionsPDF = (options: PdfOptions) => {
         theme: 'grid',
         headStyles: { fillColor: [37, 99, 235] }, // Blue
         columnStyles: isCheckingAccount ? {
-            4: { cellWidth: 10, halign: 'center' } // Coluna C/D compacta
+            3: { cellWidth: 10, halign: 'center' } // Coluna C/D compacta (ajustado índice de 4 para 3)
         } : {},
         didDrawPage: (data: any) => {
             const pageCount = doc.internal.getNumberOfPages();
