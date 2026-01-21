@@ -39,7 +39,7 @@ export interface NewAttachment {
   id: string;
   name: string;
   data: string; // Base64 encoded string
-  type: 'image_base64_jpeg';
+  mimeType: string; // Tipo real do arquivo (ex: image/webp, image/png)
 }
 
 export interface Transaction {

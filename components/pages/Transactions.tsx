@@ -56,7 +56,7 @@ const TransactionForm: React.FC<{
                     id: crypto.randomUUID(),
                     name: file.name,
                     data: base64,
-                    type: 'image_base64_jpeg'
+                    mimeType: file.type || 'image/jpeg'
                 }]);
             };
             reader.readAsDataURL(file);
@@ -164,7 +164,7 @@ const TransactionForm: React.FC<{
                     
                     {newAttachments.map(att => (
                         <div key={att.id} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-dashed border-blue-200 bg-blue-50 group shadow-sm">
-                            <img src={`data:image/jpeg;base64,${att.data}`} alt={att.name} className="w-full h-full object-cover opacity-60" />
+                            <img src={`data:${att.mimeType};base64,${att.data}`} alt={att.name} className="w-full h-full object-cover opacity-60" />
                             <div className="absolute inset-0 flex items-center justify-center">
                                 <button type="button" onClick={() => removeNewAttachment(att.id)} className="p-2.5 bg-rose-500 text-white rounded-2xl shadow-xl active:scale-90 transition-transform"><X size={18} /></button>
                             </div>

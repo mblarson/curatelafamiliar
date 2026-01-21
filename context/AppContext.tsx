@@ -143,11 +143,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const sanitizedName = attachment.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const filePath = `${crypto.randomUUID()}-${sanitizedName}`;
       
-      console.log(`Iniciando upload de anexo: ${filePath}`);
+      // Usa o mimeType correto ou fallback para jpeg se não informado
+      const contentType = attachment.mimeType || 'image/jpeg';
+      console.log(`Iniciando upload de anexo: ${filePath} com tipo ${contentType}`);
+      
       const { error: uploadError } = await supabase.storage
         .from('attachments')
-        .upload(filePath, base64ToBlob(attachment.data, 'image/jpeg'), {
-          contentType: 'image/jpeg',
+        .upload(filePath, base64ToBlob(attachment.data, contentType), {
+          contentType: contentType,
           upsert: true
         });
 
