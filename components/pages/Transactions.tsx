@@ -9,7 +9,7 @@ import { formatCurrency, formatDate } from '../../utils/formatters';
 import { generateTransactionsPDF } from '../../utils/pdfGenerator';
 import { 
   Plus, Trash2, FileText, Filter, Wallet, 
-  Edit, MessageSquare, ChevronRight, X, CreditCard, Image as ImageIcon, Camera, Calendar, ArrowUpDown
+  Edit, MessageSquare, ChevronRight, X, CreditCard, Image as ImageIcon, Camera, Calendar, ArrowUpDown, Upload
 } from 'lucide-react';
 
 const TransactionForm: React.FC<{
@@ -60,6 +60,8 @@ const TransactionForm: React.FC<{
                 }]);
             };
             reader.readAsDataURL(file);
+            // Reseta o valor do input para permitir selecionar o mesmo arquivo novamente se necessário
+            e.target.value = '';
         }
     };
 
@@ -172,11 +174,21 @@ const TransactionForm: React.FC<{
                         </div>
                     ))}
 
+                    {/* Botão Câmera (Focado em dispositivos móveis) */}
                     <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:bg-slate-50 transition-colors bg-white group active:scale-95">
                         <div className="bg-slate-50 p-2 rounded-xl group-hover:bg-white transition-colors">
-                            <Camera size={24} className="text-slate-400 group-hover:text-[#c5a059] transition-colors" />
+                            <Camera size={20} className="text-slate-400 group-hover:text-[#c5a059] transition-colors" />
                         </div>
-                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Foto / Anexo</span>
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Câmera</span>
+                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+                    </label>
+
+                    {/* Botão Galeria/Arquivo */}
+                    <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:bg-slate-50 transition-colors bg-white group active:scale-95">
+                        <div className="bg-slate-50 p-2 rounded-xl group-hover:bg-white transition-colors">
+                            <Upload size={20} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                        </div>
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Galeria</span>
                         <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                     </label>
                 </div>
