@@ -58,7 +58,10 @@ export const LoggerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
       })()
     };
-    setLogs(prevLogs => [newLog, ...prevLogs.slice(0, 99)]);
+    // Defer the state update to avoid updating state during active render phases of other components (e.g. library warnings)
+    setTimeout(() => {
+      setLogs(prevLogs => [newLog, ...prevLogs.slice(0, 99)]);
+    }, 0);
   }, []);
 
   const clearLogs = useCallback(() => {

@@ -214,11 +214,12 @@ const Transactions: React.FC<{
     const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
     const [selectedAccountFilter, setSelectedAccountFilter] = useState('');
     const [activeActionId, setActiveActionId] = useState<string | null>(null);
+    const [viewingAttachment, setViewingAttachment] = useState<Attachment | null>(null);
 
     // Filtros unificados
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [sortOption, setSortOption] = useState<'inclusion' | 'date'>('inclusion');
+    const [sortOption, setSortOption] = useState<'inclusion' | 'date'>('date');
 
     const filteredTransactions = useMemo(() => {
         let list = transactions.filter(t => {
@@ -308,17 +309,17 @@ const Transactions: React.FC<{
                         
                         {/* Filtros unificados (Período e Ordenação) */}
                         <div className="flex flex-wrap items-center gap-3">
-                            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-100">
-                                <Calendar size={12} className="text-[#c5a059]" />
-                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="text-[10px] border-none p-0 focus:ring-0 font-bold text-slate-500 uppercase" />
-                                <span className="text-[10px] font-bold text-slate-300">A</span>
-                                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="text-[10px] border-none p-0 focus:ring-0 font-bold text-slate-500 uppercase" />
+                            <div className="flex items-center gap-3 bg-white px-5 py-2.5 rounded-xl sm:rounded-2xl border border-slate-200">
+                                <Calendar size={16} className="text-[#c5a059] flex-shrink-0" />
+                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="text-sm border-none p-0 focus:ring-0 font-bold text-slate-600 uppercase outline-none" />
+                                <span className="text-xs sm:text-sm font-bold text-slate-400">A</span>
+                                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="text-sm border-none p-0 focus:ring-0 font-bold text-slate-600 uppercase outline-none" />
                             </div>
-                            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-100">
-                                <ArrowUpDown size={12} className="text-[#c5a059]" />
-                                <select value={sortOption} onChange={e => setSortOption(e.target.value as any)} className="text-[10px] border-none p-0 focus:ring-0 font-bold text-slate-500 uppercase bg-transparent">
-                                    <option value="inclusion">Ordem de Inclusão</option>
+                            <div className="flex items-center gap-3 bg-white px-5 py-2.5 rounded-xl sm:rounded-2xl border border-slate-200">
+                                <ArrowUpDown size={16} className="text-[#c5a059] flex-shrink-0" />
+                                <select value={sortOption} onChange={e => setSortOption(e.target.value as any)} className="text-sm border-none p-0 focus:ring-0 font-bold text-slate-600 uppercase bg-transparent cursor-pointer outline-none">
                                     <option value="date">Data do Lançamento</option>
+                                    <option value="inclusion">Ordem de Inclusão</option>
                                 </select>
                             </div>
                         </div>
@@ -343,7 +344,18 @@ const Transactions: React.FC<{
                                         <div className="flex flex-col">
                                             <div className="flex items-center gap-2">
                                                 <span className="font-bold text-slate-900 tracking-tight">{t.description || '-'}</span>
-                                                {t.attachments && t.attachments.length > 0 && <ImageIcon size={14} className="text-blue-500" />}
+                                                {t.attachments && t.attachments.length > 0 && (
+                                                    <button 
+                                                        onClick={(e) => { 
+                                                            e.stopPropagation(); 
+                                                            setViewingAttachment(t.attachments[0]); 
+                                                        }} 
+                                                        className="p-1 rounded hover:bg-slate-100 transition-colors text-blue-500 hover:text-blue-700 cursor-pointer flex items-center justify-center animate-[scaleIn_0.2s_ease-out]"
+                                                        title="Visualizar anexo"
+                                                    >
+                                                        <ImageIcon size={14} />
+                                                    </button>
+                                                )}
                                                 {t.comments && <MessageSquare size={14} className="text-slate-300" />}
                                             </div>
                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
@@ -383,7 +395,18 @@ const Transactions: React.FC<{
                                     <p className="text-[9px] font-bold text-slate-400 uppercase tabular-nums tracking-widest">{formatDate(t.date)}</p>
                                     <div className="flex items-center gap-2 mt-1">
                                         <h3 className="font-bold text-slate-900 leading-tight truncate max-w-[160px]">{t.description || '-'}</h3>
-                                        {t.attachments && t.attachments.length > 0 && <ImageIcon size={12} className="text-blue-500" />}
+                                        {t.attachments && t.attachments.length > 0 && (
+                                            <button 
+                                                onClick={(e) => { 
+                                                    e.stopPropagation(); 
+                                                    setViewingAttachment(t.attachments[0]); 
+                                                }} 
+                                                className="p-1 rounded hover:bg-slate-200/50 transition-colors text-blue-500 hover:text-blue-700 cursor-pointer flex items-center justify-center"
+                                                title="Visualizar anexo"
+                                            >
+                                                <ImageIcon size={12} />
+                                            </button>
+                                        )}
                                     </div>
                                     <p className="text-[9px] font-black text-[#c5a059] uppercase mt-0.5 tracking-wider">
                                         {categories.find(c => c.id === t.categoryId)?.name || 'S/ CATEGORIA'}
@@ -425,10 +448,17 @@ const Transactions: React.FC<{
             </div>
 
             <Modal isOpen={isFormModalOpen} onClose={() => setIsFormModalOpen(false)} title={transactionToEdit ? 'Alterar Lançamento' : 'Novo Lançamento'}>
-                <TransactionForm onSubmit={handleFormSubmit} onClose={() => setIsFormModalOpen(false)} transactionToEdit={transactionToEdit} transactionType={transactionType} />
-            </Modal>
-            <PdfOptionsModal isOpen={isPdfOptionsModalOpen} onClose={() => setIsPdfOptionsModalOpen(false)} onSubmit={handleGeneratePdf} />
-        </div>
+                                <TransactionForm onSubmit={handleFormSubmit} onClose={() => setIsFormModalOpen(false)} transactionToEdit={transactionToEdit} transactionType={transactionType} />
+                            </Modal>
+                            <PdfOptionsModal isOpen={isPdfOptionsModalOpen} onClose={() => setIsPdfOptionsModalOpen(false)} onSubmit={handleGeneratePdf} />
+                            {viewingAttachment && (
+                                <ViewAttachmentModal 
+                                    isOpen={!!viewingAttachment} 
+                                    onClose={() => setViewingAttachment(null)} 
+                                    attachment={viewingAttachment} 
+                                />
+                            )}
+                        </div>
     );
 };
 
